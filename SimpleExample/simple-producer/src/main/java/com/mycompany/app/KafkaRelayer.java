@@ -12,26 +12,19 @@ import jolie.runtime.JavaService;
 
 public class KafkaRelayer extends JavaService {
 
-    private static String m_topicName = "local-demo";
+    private String m_topicName = "count-updates";
 
-    public static void main(String[] args) {
-        KafkaProducer<String, String> producer = null;
+    public boolean updateCountForUsername(String username) {
         try {
             Properties props = PropertiesHelper.getProperties();
-            producer = new KafkaProducer<String, String>(props);
-            System.out.println("Hello World!");
-            while (true) {
-                ProducerRecord<String, String> message = new ProducerRecord<>(m_topicName, "Update",
-                        String.format("Test %s", LocalDateTime.now().toString()));
-                producer.send(message);
-                Thread.sleep(1000);
-            }
-        } catch (IOException | InterruptedException e) {
-            if (producer != null) {
-                producer.close();
-                System.out.println("Producer closed.");
-            }
+            KafkaProducer<String, String> producer = new KafkaProducer<String, String>(props);
+            ProducerRecord<String, String> message = new ProducerRecord<>(m_topicName, "UpdateUsername", username);
+            producer.send(message);
+            producer.close();
+            return true;
+        } catch (IOException e) {
             e.printStackTrace();
+            return false;
         }
     }
 }
