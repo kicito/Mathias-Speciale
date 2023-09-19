@@ -14,8 +14,8 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.source>1.8</maven.compiler.source>
-    <maven.compiler.target>1.8</maven.compiler.target>
+    <maven.compiler.source>1.7</maven.compiler.source>
+    <maven.compiler.target>1.7</maven.compiler.target>
   </properties>
 
   <dependencies>
@@ -26,28 +26,17 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <!-- https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients -->
-      <groupId>org.apache.kafka</groupId>
-      <artifactId>kafka-clients</artifactId>
-      <version>3.0.0</version>
+    <groupId>org.apache.kafka</groupId>
+    <artifactId>kafka-clients</artifactId>
+    <version>2.7.0</version>
     </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-jcl</artifactId>
-      <version>1.7.5</version>
-    </dependency>     
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-      <version>1.7.5</version>
-    </dependency>
-    <dependency>
-      <!-- https://mvnrepository.com/artifact/org.jolie-lang/jolie -->
-      <groupId>org.jolie-lang</groupId>
-      <artifactId>jolie</artifactId>
-      <version>1.11.0</version>
-    </dependency>
-
+     <dependency>
+         <groupId>joliepck</groupId>
+         <artifactId>joliepck</artifactId>
+         <scope>system</scope>
+         <version>1.0</version>
+         <systemPath>${pom.basedir}/src/lib/jolie.jar</systemPath>
+      </dependency>
   </dependencies>
 
   <build>
@@ -68,6 +57,7 @@
           <version>3.8.0</version>
            <configuration>
         <release>13</release>
+
       </configuration>
         </plugin>
         <plugin>
@@ -94,27 +84,6 @@
         <plugin>
           <artifactId>maven-project-info-reports-plugin</artifactId>
           <version>3.0.0</version>
-        </plugin>
-        <plugin>
-          <artifactId>maven-assembly-plugin</artifactId>
-            <executions>
-                <execution>
-                    <phase>package</phase>
-                    <goals>
-                        <goal>single</goal>
-                    </goals>
-                </execution>
-            </executions>
-            <configuration>
-                <descriptorRefs>
-                    <descriptorRef>jar-with-dependencies</descriptorRef>
-                </descriptorRefs>
-              <archive>
-                    <manifest>
-                        <mainClass>pakageName.MainClassName</mainClass>
-                    </manifest>
-                </archive>
-            </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
