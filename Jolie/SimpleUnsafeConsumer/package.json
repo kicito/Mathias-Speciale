@@ -1,0 +1,23 @@
+{
+  "name": "simpleconsumer_unsafe",
+  "version": "0.0.0",
+  "description": "A simple Kafka consumer, not implementing the inbox pattern",
+  "repo": "",
+  "keywords": [],
+  "author": "Mathias Jensen",
+  "license": "ISC",
+  "scripts": {
+    "start": "jolie undefined",
+    "test": "jot jot.json"
+  },
+  "devDependencies": {
+    "@jolie/jot": "*"
+  },
+  "jolie": {
+    "dependencies": {},
+    "maven": {
+      "dependencies": {},
+      "indirectDependencies": {}
+    }
+  }
+}

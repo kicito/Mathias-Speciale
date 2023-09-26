@@ -1,0 +1,10 @@
+{
+  "params": {
+    "SimpleConsumer.ol": [
+      {
+        "name": "SimpleConsumer",
+        "params": {}
+      }
+    ]
+  }
+}
