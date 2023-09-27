@@ -5,7 +5,7 @@ type KafkaMessage {
 }
 
 interface  SimpleKafkaConnectorInterface {
-    OneWay: propagateMessage ( string )
+    OneWay: propagateMessage ( KafkaMessage )
 }
 
 service SimpleKafkaConnector{

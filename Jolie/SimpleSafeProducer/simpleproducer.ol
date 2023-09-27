@@ -3,8 +3,7 @@ include "database.iol"
 include "console.iol"
 include "time.iol"
 
-from .outboxservice import Outbox
-
+from .outboxService import Outbox
 
 type UpdateNumberRequest {
     .username : string
@@ -37,16 +36,27 @@ service SimpleProducer{
             .host = "";
             .database = "file:database.sqlite"; // "." for memory-only
             .driver = "sqlite"
-        };
-
-        connect@OutboxService( connectionInfo );
-        connect@Database( connectionInfo )(void);
+        }
+        with ( pollSettings )
+        {
+            .pollAmount = 3
+            .pollDurationMS = 3000
+        }
+        with ( outboxSettings )
+        {
+            .pollSettings << pollSettings;
+            .databaseConnectionInfo << connectionInfo
+        }
+        
+            
+        connect@OutboxService( outboxSettings )
+        connect@Database( connectionInfo )(void)
 
         scope ( createTable ) 
         {
-            install ( SQLException => println@Console("Numbers table already exists")() );
+            install ( SQLException => println@Console("Numbers table already exists")() )
             updateRequest =
-                "CREATE TABLE Numbers(username VARCHAR(50) NOT NULL, " +
+                "CREATE TABLE IF NOT EXISTS Numbers(username VARCHAR(50) NOT NULL, " +
                 "number int)";
             update@Database( updateRequest )( ret )
         }
@@ -58,10 +68,11 @@ service SimpleProducer{
             println@Console("UpdateNumber called with username " + request.username)()
             scope ( InsertData )    //Update the number in the database
             {   
-                install ( SQLException => println@Console( "SQL exception while trying to insert data" )( ) );
-                updateQuery.sqlQuery = "UPDATE Numbers SET number = number + 1 WHERE username = \"" + request.username + "\"";
-                updateQuery.key = "Update";
-                updateQuery.value = "Updated number for " + request.username;
+                install ( SQLException => println@Console( "SQL exception while trying to insert data" )( ) )
+                updateQuery.sqlQuery = "UPDATE Numbers SET number = number + 1 WHERE username = \"" + request.username + "\""
+                updateQuery.topic = "local-demo"
+                updateQuery.key = "Update"
+                updateQuery.value = "Updated number for " + request.username
                 transactionalOutboxUpdate@OutboxService( updateQuery )( updateResponse )
                 println@Console( "Update response: " + updateResponse )(  )
                 response = "Yay2"

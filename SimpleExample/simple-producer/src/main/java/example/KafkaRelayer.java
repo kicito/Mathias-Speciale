@@ -12,8 +12,9 @@ import jolie.runtime.Value;
 
 public class KafkaRelayer extends JavaService {
 
-    public void updateCountForUsername(Value input) {
+    public void propagateMessage(Value input) {
 
+        System.out.println(input.toString());
         Properties props = new Properties();
         props.put("bootstrap.servers", "localhost:9092");
         props.put("group.id", "test-group");
