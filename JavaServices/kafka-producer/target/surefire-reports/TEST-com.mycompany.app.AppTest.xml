@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" name="com.mycompany.app.AppTest" time="0.032" tests="1" errors="0" skipped="0" failures="0">
+  <properties>
+    <property name="java.specification.version" value="13"/>
+    <property name="sun.jnu.encoding" value="UTF-8"/>
+    <property name="java.class.path" value="/home/mj/Desktop/Speciale/JavaServices/kafka-producer/target/test-classes:/home/mj/Desktop/Speciale/JavaServices/kafka-producer/target/classes:/home/mj/.m2/repository/junit/junit/4.11/junit-4.11.jar:/home/mj/.m2/repository/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar:/home/mj/.m2/repository/org/apache/kafka/kafka-clients/3.0.0/kafka-clients-3.0.0.jar:/home/mj/.m2/repository/com/github/luben/zstd-jni/1.5.0-2/zstd-jni-1.5.0-2.jar:/home/mj/.m2/repository/org/lz4/lz4-java/1.7.1/lz4-java-1.7.1.jar:/home/mj/.m2/repository/org/xerial/snappy/snappy-java/1.1.8.1/snappy-java-1.1.8.1.jar:/home/mj/.m2/repository/org/slf4j/slf4j-jcl/1.7.5/slf4j-jcl-1.7.5.jar:/home/mj/.m2/repository/commons-logging/commons-logging/1.1.1/commons-logging-1.1.1.jar:/home/mj/.m2/repository/org/slf4j/slf4j-api/1.7.5/slf4j-api-1.7.5.jar:/home/mj/.m2/repository/org/jolie-lang/jolie/1.11.0/jolie-1.11.0.jar:/home/mj/.m2/repository/org/jolie-lang/libjolie/1.11.0/libjolie-1.11.0.jar:/home/mj/.m2/repository/dk/brics/automaton/1.12-1/automaton-1.12-1.jar:/home/mj/.m2/repository/org/apache/commons/commons-text/1.10.0/commons-text-1.10.0.jar:/home/mj/.m2/repository/org/apache/commons/commons-lang3/3.12.0/commons-lang3-3.12.0.jar:"/>
+    <property name="java.vm.vendor" value="Private Build"/>
+    <property name="sun.arch.data.model" value="64"/>
+    <property name="java.vendor.url" value="Unknown"/>
+    <property name="os.name" value="Linux"/>
+    <property name="java.vm.specification.version" value="13"/>
+    <property name="sun.java.launcher" value="SUN_STANDARD"/>
+    <property name="user.country" value="GB"/>
+    <property name="sun.boot.library.path" value="/usr/lib/jvm/java-13-openjdk-amd64/lib"/>
+    <property name="sun.java.command" value="/home/mj/Desktop/Speciale/JavaServices/kafka-producer/target/surefire/surefirebooter9031746882209779116.jar /home/mj/Desktop/Speciale/JavaServices/kafka-producer/target/surefire 2023-10-03T10-10-14_710-jvmRun1 surefire645228304814837815tmp surefire_015799370214228358677tmp"/>
+    <property name="jdk.debug" value="release"/>
+    <property name="surefire.test.class.path" value="/home/mj/Desktop/Speciale/JavaServices/kafka-producer/target/test-classes:/home/mj/Desktop/Speciale/JavaServices/kafka-producer/target/classes:/home/mj/.m2/repository/junit/junit/4.11/junit-4.11.jar:/home/mj/.m2/repository/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar:/home/mj/.m2/repository/org/apache/kafka/kafka-clients/3.0.0/kafka-clients-3.0.0.jar:/home/mj/.m2/repository/com/github/luben/zstd-jni/1.5.0-2/zstd-jni-1.5.0-2.jar:/home/mj/.m2/repository/org/lz4/lz4-java/1.7.1/lz4-java-1.7.1.jar:/home/mj/.m2/repository/org/xerial/snappy/snappy-java/1.1.8.1/snappy-java-1.1.8.1.jar:/home/mj/.m2/repository/org/slf4j/slf4j-jcl/1.7.5/slf4j-jcl-1.7.5.jar:/home/mj/.m2/repository/commons-logging/commons-logging/1.1.1/commons-logging-1.1.1.jar:/home/mj/.m2/repository/org/slf4j/slf4j-api/1.7.5/slf4j-api-1.7.5.jar:/home/mj/.m2/repository/org/jolie-lang/jolie/1.11.0/jolie-1.11.0.jar:/home/mj/.m2/repository/org/jolie-lang/libjolie/1.11.0/libjolie-1.11.0.jar:/home/mj/.m2/repository/dk/brics/automaton/1.12-1/automaton-1.12-1.jar:/home/mj/.m2/repository/org/apache/commons/commons-text/1.10.0/commons-text-1.10.0.jar:/home/mj/.m2/repository/org/apache/commons/commons-lang3/3.12.0/commons-lang3-3.12.0.jar:"/>
+    <property name="sun.cpu.endian" value="little"/>
+    <property name="user.home" value="/home/mj"/>
+    <property name="user.language" value="en"/>
+    <property name="java.specification.vendor" value="Oracle Corporation"/>
+    <property name="java.version.date" value="2021-04-20"/>
+    <property name="java.home" value="/usr/lib/jvm/java-13-openjdk-amd64"/>
+    <property name="file.separator" value="/"/>
+    <property name="basedir" value="/home/mj/Desktop/Speciale/JavaServices/kafka-producer"/>
+    <property name="java.vm.compressedOopsMode" value="Zero based"/>
+    <property name="line.separator" value="&#10;"/>
+    <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
+    <property name="java.specification.name" value="Java Platform API Specification"/>
+    <property name="surefire.real.class.path" value="/home/mj/Desktop/Speciale/JavaServices/kafka-producer/target/surefire/surefirebooter9031746882209779116.jar"/>
+    <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
+    <property name="java.runtime.version" value="13.0.7+5-Ubuntu-0ubuntu120.04"/>
+    <property name="user.name" value="mj"/>
+    <property name="path.separator" value=":"/>
+    <property name="os.version" value="5.15.0-84-generic"/>
+    <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
+    <property name="file.encoding" value="UTF-8"/>
+    <property name="java.vm.name" value="OpenJDK 64-Bit Server VM"/>
+    <property name="localRepository" value="/home/mj/.m2/repository"/>
+    <property name="java.vendor.url.bug" value="Unknown"/>
+    <property name="java.io.tmpdir" value="/tmp"/>
+    <property name="java.version" value="13.0.7"/>
+    <property name="user.dir" value="/home/mj/Desktop/Speciale/JavaServices/kafka-producer"/>
+    <property name="os.arch" value="amd64"/>
+    <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
+    <property name="java.library.path" value="/usr/java/packages/lib:/usr/lib/x86_64-linux-gnu/jni:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu:/usr/lib/jni:/lib:/usr/lib"/>
+    <property name="java.vm.info" value="mixed mode"/>
+    <property name="java.vendor" value="Private Build"/>
+    <property name="java.vm.version" value="13.0.7+5-Ubuntu-0ubuntu120.04"/>
+    <property name="sun.io.unicode.encoding" value="UnicodeLittle"/>
+    <property name="java.class.version" value="57.0"/>
+  </properties>
+  <testcase name="shouldAnswerWithTrue" classname="com.mycompany.app.AppTest" time="0.001"/>
+</testsuite>
