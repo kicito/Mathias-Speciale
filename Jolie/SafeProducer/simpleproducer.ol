@@ -1,4 +1,3 @@
-
 include "database.iol"
 include "console.iol"
 include "time.iol"
@@ -47,18 +46,17 @@ service SimpleProducer{
         {
             .bootstrapServers =  "localhost:9092"
             .groupId = "test-group"
-            .maxPollRecords = 1
-        };
+        }
 
         with ( outboxSettings )
         {
             .pollSettings << pollSettings;
             .databaseConnectionInfo << connectionInfo;
-            .messageBroker = "kafka"
+            .brokerOptions << kafkaOptions
         }
         
-        connect@OutboxService( outboxSettings )
-        connect@Database( connectionInfo )(void)
+        connectKafka@OutboxService( outboxSettings ) ( outboxResponse )
+        connect@Database( connectionInfo )( void )
 
         scope ( createTable ) 
         {
@@ -83,7 +81,7 @@ service SimpleProducer{
                 updateQuery.value = "Updated number for " + request.username
                 transactionalOutboxUpdate@OutboxService( updateQuery )( updateResponse )
                 println@Console( "Update response: " + updateResponse )(  )
-                response = "Yay2"
+                response = "Choreography Started!"
             }
         }]
     }

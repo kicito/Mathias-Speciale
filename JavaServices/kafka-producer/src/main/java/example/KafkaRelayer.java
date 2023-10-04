@@ -14,13 +14,21 @@ import jolie.runtime.Value;
 
 public class KafkaRelayer extends JavaService {
 
-    public void propagateMessage(Value input) {
-
-        System.out.println(input.toString());
+    /**
+     * Propagates a message to Kafka
+     */
+    public Value propagateMessage(Value input) {
         Properties props = new Properties();
-        props.put("bootstrap.servers", "localhost:9092");
-        props.put("group.id", "test-group");
-        props.put("max.poll.records", "10");
+
+        // Get these values from the request. We might want the rest of the values to
+        // also be configurable, but this is future work.
+        props.put("bootstrap.servers",
+                input.getFirstChild("brokerOptions").getFirstChild("bootstrapServers").strValue());
+        props.put(
+                "group.id",
+                input.getFirstChild("brokerOptions").getFirstChild("groupId").strValue());
+
+        // For now, these values are non-configurable
         props.put("enable.auto.commit", "true");
         props.put("auto.commit.interval.ms", "500");
         props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
@@ -28,30 +36,35 @@ public class KafkaRelayer extends JavaService {
         props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 
+        // Setup Kafka connection
         KafkaProducer<String, String> producer = new KafkaProducer<String, String>(props);
         ProducerRecord<String, String> message = new ProducerRecord<>(
                 input.getFirstChild("topic").strValue(),
                 input.getFirstChild("key").strValue(),
                 input.getFirstChild("value").strValue());
+        Value response = Value.create();
 
-        Callback cb = new Callback() {
+        // The callback is executed once a response is recieved from Kafka
+        producer.send(message, new Callback() {
             public void onCompletion(RecordMetadata recordMetadata, Exception e) {
-                String response;
+                String statusMessage;
                 if (e == null) {
-                    response = "Kafka message delivered. \n" +
+                    statusMessage = "Kafka message delivered. \n" +
                             "Topic: " + recordMetadata.topic() + "\n" +
                             "Partition: " + recordMetadata.partition() + "\n" +
                             "Offset: " + recordMetadata.offset() + "\n" +
                             "Timestamp: " + recordMetadata.timestamp();
-                    System.out.println(response);
-
+                    response.getFirstChild("reason").setValue(statusMessage);
+                    response.getFirstChild("status").setValue(200);
                 } else {
-                    response = e.getMessage();
-                    System.out.println(response);
+                    statusMessage = e.getMessage();
+                    response.getFirstChild("reason").setValue(statusMessage);
+                    response.getFirstChild("status").setValue(500);
                 }
             }
-        };
-        producer.send(message, cb);
+        });
         producer.close();
+
+        return response;
     }
 }
