@@ -1,7 +1,7 @@
 include "time.iol"
 include "console.iol"
 include "database.iol"
-from .messageforwarder import MessageForwarderService
+from .messageForwarderService import MessageForwarderService
 
 type KafkaOptions: void {   
     .bootstrapServers: string                   // The URL of the kafka server to connect to, e.g. "localhost:9092"
