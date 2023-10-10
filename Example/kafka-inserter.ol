@@ -8,17 +8,17 @@ type KafkaMessage {
     .brokerOptions: KafkaOptions
 }
 
-interface  SimpleKafkaConnectorInterface {
+interface  KafkaInserterInterface {
     RequestResponse: propagateMessage ( KafkaMessage )( StatusResponse )
 }
 
 /**
 *   A connector class to allow for communicating with the java-service (defined in ~/JavaServices/kafka-producer/src/main/java/example/KafkaRelayer.java)
 */
-service SimpleKafkaConnector{
+service KafkaInserter{
     inputPort Input {
         Location: "local"
-        Interfaces: SimpleKafkaConnectorInterface
+        Interfaces: KafkaInserterInterface
         }
         foreign java {
             class: "example.KafkaRelayer"

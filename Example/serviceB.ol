@@ -15,7 +15,7 @@ type UpdateDatabaseResponse {
 
 interface ChoreographyParticipantInterface {
     RequestResponse:
-        UpdateNumberForUser( UpdateDatabaseRequest )( UpdateDatabaseResponse )
+        updateNumberForUser( UpdateDatabaseRequest )( UpdateDatabaseResponse )
 }
 
 service ServiceB{
@@ -85,9 +85,10 @@ service ServiceB{
     }
 
     main {
-        [UpdateNumberForUser( request )( response ){
+        [updateNumberForUser( request )( response ){
             scope ( InsertData )    //Update the number in the database
             {   
+                println@Console("updateNumberForUser called with username " + request.userToUpdate)()
                 install ( SQLException => println@Console( "SQL exception while trying to insert data" )( ) )
                 updateQuery.sqlQuery = "UPDATE Numbers SET number = number + 1 WHERE username = \"" + request.userToUpdate + "\""
                 updateQuery.topic = "service-b-local-updates"

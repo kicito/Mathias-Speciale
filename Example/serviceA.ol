@@ -46,6 +46,7 @@ service ServiceA{
 
     init
     {
+        println@Console("Initializing main service")()
         with ( connectionInfo ) 
         {
             .username = "";
@@ -96,7 +97,6 @@ service ServiceA{
             {   
                 install ( SQLException => println@Console( "SQL exception while trying to insert data" )( ) )
                 updateQuery.sqlQuery = "UPDATE Numbers SET number = number + 1 WHERE username = \"" + request.username + "\""
-                println@Console("Query: " + updateQuery.sqlQuery)()
                 updateQuery.topic = "service-a-local-updates"
                 updateQuery.key = request.username
                 updateQuery.value = "Updated number for " + request.username

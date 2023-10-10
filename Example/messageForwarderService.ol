@@ -5,7 +5,7 @@ include "time.iol"
 from .outboxService import KafkaOptions
 from .outboxService import PollSettings
 from .outboxService import StatusResponse
-from .kafka-inserter import SimpleKafkaConnector
+from .kafka-inserter import KafkaInserter
 
 type ColumnSettings {
     .keyColumn: string
@@ -39,7 +39,7 @@ service MessageForwarderService{
         Location: "local"
         Interfaces: MessageForwarderInterface
     }
-    embed SimpleKafkaConnector as KafkaRelayer
+    embed KafkaInserter as KafkaInserter
 
     /** Starts this service reading continually from the 'Messages' table */
     main{
@@ -56,24 +56,24 @@ service MessageForwarderService{
                 global.M_KafkaOptions << request.brokerOptions
                 response.status = 200
                 response.reason = "MessageForwarderService initialized sucessfully"
-                println@Console( "MessageForwarder connected to database!" )(  )
             }
-
         }] 
         {
             connect@Database( request.databaseConnectionInfo )( void )  // I very much hate that i have to do this again, and i CANNOT simply keep the connection from above open
+            println@Console( "Started forwarding messages into Kafka" )(  )
             
             // Keep polling for messages at a given interval.
             while(true) {
                 query = "SELECT * FROM messages LIMIT " + request.pollSettings.pollAmount
                 query@Database(query)( pulledMessages )
                 if (#pulledMessages.row > 0){
+                    println@Console( "Forwarding " +  #pulledMessages.row + " messages into kafka!")(  )
                     for ( databaseMessage in pulledMessages.row ){
                         kafkaMessage.topic = request.brokerOptions.topic
                         kafkaMessage.key = databaseMessage.(request.columnSettings.keyColumn)
                         kafkaMessage.value = databaseMessage.(request.columnSettings.valueColumn)
                         kafkaMessage.brokerOptions << global.M_KafkaOptions
-                        propagateMessage@KafkaRelayer( kafkaMessage )( kafkaResponse )
+                        propagateMessage@KafkaInserter( kafkaMessage )( kafkaResponse )
                         if (kafkaResponse.status == 200) {
                             update@Database( "DELETE FROM messages WHERE " + ( request.columnSettings.idColumn ) + " = " + databaseMessage.(request.columnSettings.idColumn) )( updateResponse )
                         }

@@ -67,7 +67,8 @@ service Outbox{
         /*
         * Connect to a Kafka version of this service.
         */
-        [connectKafka( request ) ( response ){
+        [connectKafka( request ) ( response ){            
+            println@Console("Initializing connection to Kafka")();
             connect@Database( request.databaseConnectionInfo )( void )
             scope ( createMessagesTable )
             {
@@ -101,12 +102,13 @@ service Outbox{
         */
         [transactionalOutboxUpdate( request )( response ){
             if (global.M_MessageBroker == "Kafka"){
-                println@Console( "Initiating transactional update" )(  )
                 install (ConnectionError => {response = "Call to update before connecting"} )
 
                 updateMessagesTableQuery = "INSERT INTO messages (kafkaKey, kafkaValue) VALUES (\"" + request.key + "\", \"" + request.value + "\");" 
                 transactionRequest.statement[0] = updateMessagesTableQuery
                 transactionRequest.statement[1] = request.sqlQuery
+                println@Console( "Initiating transactional update with queries: " )(  )
+                println@Console("\t" + transactionRequest.statement[0] + "\n\t" + transactionRequest.statement[1])()
 
                 executeTransaction@Database( transactionRequest )( transactionResponse )
                 response.status = 200

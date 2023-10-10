@@ -39,6 +39,7 @@ service Inbox{
 
     main
     {
+        println@Console( "Initializing inboxservice" )()
 
         with ( pollOptions )
         {
@@ -64,10 +65,12 @@ service Inbox{
         while (true) {
             Consume@KafkaConsumer( consumeRequest )( consumeResponse )
             for ( i = 0, i < #consumeResponse.messages, i++ ) {
+                println@Console( "Recieved a message from kafka! Forwarding to main service!" )()
                 numberCorrectlyUpdated@ServiceA( "Done" )( serviceAresponse )
                 if ( serviceAresponse.code == 200 ){
                     commitRequest.offset = consumeResponse.messages[i].offset
                     Commit@KafkaConsumer( commitRequest )( commitResponse )
+                    println@Console( "Sucessfully forwarded service. Commited offset: " + commitRequest.offset )()
                 }
             }
             sleep@Time( 1000 )(  )
