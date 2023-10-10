@@ -6,4 +6,7 @@ The Outbox pattern has been implemented, providing at-least-once delivery into K
 3. serviceB.matchAUpdate -> Kafka.localUpdateAtServiceB;
 4. Kafka.localUpdateAtServiceB -> serviceA.finishChoreography;
 
-To run the example, all that is needed is Docker
+To run the example, all that is needed is Docker compose:
+1. Download the docker-compose file containing Kafka and the two services (`wget -O docker-compose.yaml https://raw.githubusercontent.com/Maje419/Speciale/main/Example/docker-compose.yml?token=GHSAT0AAAAAACHPMOWQF6PK2LYOUHIS72H4ZJFHDNA`)
+2. Run `docker-compose up`. serviceA now listens on `localhost:8080`.
+3. From a seperate terminal, run `curl http://localhost:8080/updateNumber?username=user1` to initiate the choreography of updating the number connected to user 'user1'
