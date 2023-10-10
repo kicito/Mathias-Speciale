@@ -5,4 +5,4 @@ COPY . .
 
 EXPOSE 8080
 
-CMD ["jolie", "SimpleConsumer.ol"]
+CMD ["jolie", "inboxServiceA.ol"]

@@ -24,26 +24,21 @@ public class KafkaConsumerService extends JavaService {
 
     /**
      * @param input
-     *              .bootstrapServer: string - The IP of the kafka server to use for
+     *              .bootstrapServers: string - The IP of the kafka server to use
+     *              for
      *              bootstrapping onto the cluster, i.e. "localhost:9092"
      *              .groupId: string - This id of the group this consumer belongs
      *              to.
-     *              .enableAutoCommit: 'true' | 'false' - Specifies whether kafka
-     *              should automatically commit which messages this consumer has
-     *              read
-     *              .autoCommitInterval: string - The number of ms between auto
-     *              commits, if enabled
      *              .topic: string - The topic this consumer should subscribe to
-     * @return Same values as those given in input, as well as a status message
-     *         '.reason'
+     *              .pollAmount: str - The number of records that can be consumed
+     *              from the kafka queue per poll
      */
     public Value Initialize(Value input) {
-        System.out.println("KafkaConsumerService: Initializing");
         Properties props = new Properties();
         Value kafkaOptions = input.getFirstChild("brokerOptions");
         Value pollOptions = input.getFirstChild("pollOptions");
 
-        props.setProperty("bootstrap.servers", kafkaOptions.getFirstChild("bootstrapServer").strValue());
+        props.setProperty("bootstrap.servers", kafkaOptions.getFirstChild("bootstrapServers").strValue());
         props.setProperty("group.id", kafkaOptions.getFirstChild("groupId").strValue());
         props.setProperty("max.poll.records", pollOptions.getFirstChild("pollAmount").strValue());
 
@@ -60,7 +55,7 @@ public class KafkaConsumerService extends JavaService {
 
         Value response = Value.create();
         response.getFirstChild("topic").setValue(topic);
-        response.getFirstChild("bootstrapServer").setValue(props.getProperty("bootstrap.servers"));
+        response.getFirstChild("bootstrapServers").setValue(props.getProperty("bootstrap.servers"));
         response.getFirstChild("groupId").setValue(props.getProperty("group.id"));
         return response;
     }
@@ -69,13 +64,8 @@ public class KafkaConsumerService extends JavaService {
      * @param input
      *              .timeoutMs: long - How long the consumer should wait for a
      *              response form Kafka
-     * @return Value
-     *         .code: int - Status code indicating success
-     *         .messages: List<KafkaMessage> - The messages that kafka responded
-     *         with
      */
     public Value Consume(Value input) {
-        System.out.println("KafkaConsumerService: Polling for new messages in Kafka");
         long timeout = input.getFirstChild("timeoutMs").longValue();
         ConsumerRecords<String, String> records = null;
 
@@ -91,7 +81,6 @@ public class KafkaConsumerService extends JavaService {
         }
 
         if (records != null) {
-            System.out.println("KafkaConsumerService: Retrieved " + records.count() + " messages from kafka");
             for (ConsumerRecord<String, String> record : records) {
                 Value message = Value.create();
                 message.getFirstChild("offset").setValue(record.offset());
@@ -105,10 +94,16 @@ public class KafkaConsumerService extends JavaService {
         return response;
     }
 
+    /**
+     * 
+     * @param input
+     *              .offset: long - The offset of the last message which has been
+     *              confirmed to be delivered
+     * @return
+     */
     public Value Commit(Value input) {
         long offset = input.getFirstChild("offset").longValue() + 1; // +1 since we're committing what the offset of the
                                                                      // NEXT message is
-        System.out.println("KafkaConsumerService: Comitting offset " + offset);
         Map<TopicPartition, OffsetAndMetadata> topics;
         synchronized (lock) {
             topics = consumer.partitionsFor(topic)
