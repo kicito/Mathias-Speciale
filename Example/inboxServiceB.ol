@@ -1,4 +1,5 @@
 include "console.iol"
+include "time.iol"
 include "database.iol"
 
 from .kafka-retriever import KafkaConsumer
@@ -45,15 +46,6 @@ service Inbox{
             .pollDurationMS = 3000
         };
 
-        with ( connectionInfo ) 
-        {
-            .username = "";
-            .password = "";
-            .host = "";
-            .database = "file:database.sqlite"; // "." for memory-only
-            .driver = "sqlite"
-        }
-
         with ( kafkaOptions )
         {
             .bootstrapServers =  "kafka:9092";
@@ -67,34 +59,22 @@ service Inbox{
             .brokerOptions << kafkaOptions
         }
 
-        connect@Database( connectionInfo )( void )
-        scope ( createtable ) 
-        {
-            install ( sqlexception => println@Console("inbox table already exists")() )
-            updateRequest = "CREATE TABLE IF NOT EXISTS inbox (kafkaKey VARCHAR(50), kafkaValue VARCHAR (150), kafkaOffset INTEGER PRIMARY KEY AUTOINCREMENT);"
-                update@Database( updateRequest )( ret )
-            update@Database( updaterequest )( ret )
-        }
-
         Initialize@KafkaConsumer( inboxSettings )( initializedResponse )
         consumeRequest.timeoutMs = 3000
-
         while (true) {
             Consume@KafkaConsumer( consumeRequest )( consumeResponse )
 
             for ( i = 0, i < #consumeResponse.messages, i++ ) {
                 println@Console( "Recieved a message from kafka! Forwarding to main service!" )()
-                inboxUpdate.key = consumeResponse.messages[i].key
-                inboxUpdate.value = consumeResponse.messages[i].value
-                inboxUpdate.offset = consumeResponse.messages[i].offset
-                update@Database( "INSERT INTO inbox VALUES (\"" + inboxUpdate.key + "\", \"" + inboxUpdate.value + "\", " + inboxUpdate.offset + ")" )(inboxResponse)
-
-                inboxUpdated@ServiceB( connectionInfo )( simpleconsumerResponse )
-                // if ( simpleconsumerResponse.amountMessagesRead > 0 ){
-                //     //Commit@KafkaConsumer( commitRequest )( commitResponse )
-                //     println@Console( "Sucessfully forwarded to main service, which processed " + simpleconsumerResponse.amountMessagesRead + " messages.")()
-                // }
+                updateNumberRequest.userToUpdate = consumeResponse.messages[i].key
+                updateNumberForUser@ServiceB( updateNumberRequest )( simpleconsumerResponse )
+                if ( simpleconsumerResponse.code == 200 ){
+                    commitRequest.offset = consumeResponse.messages[i].offset
+                    Commit@KafkaConsumer( commitRequest )( commitResponse )
+                    println@Console( "Sucessfully forwarded service. Commited offset: " + commitRequest.offset )()
+                }
             }
+            sleep@Time( 1000 )(  )
         }
     }
 }

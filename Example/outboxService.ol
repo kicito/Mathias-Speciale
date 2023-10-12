@@ -1,3 +1,4 @@
+include "time.iol"
 include "console.iol"
 include "database.iol"
 from .messageForwarderService import MessageForwarderService
@@ -19,7 +20,7 @@ type PollSettings: void{
 }
 
 type UpdateOutboxRequest{
-    .sqlQuery*: string                                   // The query that is to be executed against the database
+    .sqlQuery: string                                   // The query that is to be executed against the database
     .key: string                                        // The key to use in the kafka message
     .value: string                                      // The value for the kafka message
     .topic: string                                      // The kafka topic on which the update should be broadcast
@@ -45,7 +46,7 @@ interface OutboxInterface{
 
 /**
 * This service is used to implement the outbox pattern. Given an SQL query and some message, it will atomically execute the query, as well write the message to a messages table.
-* It will then embeds a 'RelayService', which reads from the 'outbox' table and forwards messages into Kafka.
+* It will then embeds a 'RelayService', which reads from the 'Messages' table and forwards messages into Kafka.
 */
 service Outbox{
     execution: sequential
@@ -72,13 +73,13 @@ service Outbox{
             scope ( createMessagesTable )
             {
                 install ( SQLException => {
-                    println@Console("Error when creating the outbox table for the outbox!")();
-                    response.reason = "Error when creating the outbox table for the outbox!";
+                    println@Console("Error when creating the messages table for the outbox!")();
+                    response.reason = "Error when creating the messages table for the outbox!";
                     resposnse.code = 500
                     })
 
                 // Varchar size is not enforced by sqlite, we can insert a string of any length
-                updateRequest = "CREATE TABLE IF NOT EXISTS outbox (kafkaKey VARCHAR(50), kafkaValue VARCHAR (150), mid INTEGER PRIMARY KEY AUTOINCREMENT);"
+                updateRequest = "CREATE TABLE IF NOT EXISTS messages (kafkaKey VARCHAR(50), kafkaValue VARCHAR (150), mid INTEGER PRIMARY KEY AUTOINCREMENT);"
                 update@Database( updateRequest )( ret )
             }
 
@@ -103,10 +104,9 @@ service Outbox{
             if (global.M_MessageBroker == "Kafka"){
                 install (ConnectionError => {response = "Call to update before connecting"} )
 
-                updateMessagesTableQuery = "INSERT INTO outbox (kafkaKey, kafkaValue) VALUES (\"" + request.key + "\", \"" + request.value + "\");" 
-                transactionRequest.statement[0] = request.sqlQuery[0]
-                transactionRequest.statement[1] = request.sqlQuery[1]
-                transactionRequest.statement[2] = updateMessagesTableQuery
+                updateMessagesTableQuery = "INSERT INTO messages (kafkaKey, kafkaValue) VALUES (\"" + request.key + "\", \"" + request.value + "\");" 
+                transactionRequest.statement[0] = updateMessagesTableQuery
+                transactionRequest.statement[1] = request.sqlQuery
                 println@Console( "Initiating transactional update with queries: " )(  )
                 println@Console("\t" + transactionRequest.statement[0] + "\n\t" + transactionRequest.statement[1])()
 

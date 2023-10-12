@@ -49,7 +49,7 @@ service Inbox{
 
         with ( kafkaOptions )
         {
-            .bootstrapServers =  "localhost:9092";
+            .bootstrapServers =  "kafka:9092";
             .groupId = "service-a-inbox";
             .topic = "service-b-local-updates"
         };
