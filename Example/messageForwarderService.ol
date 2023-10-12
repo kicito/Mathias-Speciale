@@ -64,7 +64,7 @@ service MessageForwarderService{
             
             // Keep polling for messages at a given interval.
             while(true) {
-                query = "SELECT * FROM messages LIMIT " + request.pollSettings.pollAmount
+                query = "SELECT * FROM outbox LIMIT " + request.pollSettings.pollAmount
                 query@Database(query)( pulledMessages )
                 if (#pulledMessages.row > 0){
                     println@Console( "Forwarding " +  #pulledMessages.row + " messages into kafka!")(  )
@@ -75,7 +75,7 @@ service MessageForwarderService{
                         kafkaMessage.brokerOptions << global.M_KafkaOptions
                         propagateMessage@KafkaInserter( kafkaMessage )( kafkaResponse )
                         if (kafkaResponse.status == 200) {
-                            update@Database( "DELETE FROM messages WHERE " + ( request.columnSettings.idColumn ) + " = " + databaseMessage.(request.columnSettings.idColumn) )( updateResponse )
+                            update@Database( "DELETE FROM outbox WHERE " + ( request.columnSettings.idColumn ) + " = " + databaseMessage.(request.columnSettings.idColumn) )( updateResponse )
                         }
                     }
                 }
