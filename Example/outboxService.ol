@@ -20,7 +20,7 @@ type PollSettings: void{
 }
 
 type UpdateOutboxRequest{
-    .sqlQuery: string                                   // The query that is to be executed against the database
+    .sqlQuery*: string                                   // The query that is to be executed against the database
     .key: string                                        // The key to use in the kafka message
     .value: string                                      // The value for the kafka message
     .topic: string                                      // The kafka topic on which the update should be broadcast
@@ -79,7 +79,7 @@ service Outbox{
                     })
 
                 // Varchar size is not enforced by sqlite, we can insert a string of any length
-                updateRequest = "CREATE TABLE IF NOT EXISTS messages (kafkaKey VARCHAR(50), kafkaValue VARCHAR (150), mid INTEGER PRIMARY KEY AUTOINCREMENT);"
+                updateRequest = "CREATE TABLE IF NOT EXISTS outbox (kafkaKey VARCHAR(50), kafkaValue VARCHAR (150), mid INTEGER PRIMARY KEY AUTOINCREMENT);"
                 update@Database( updateRequest )( ret )
             }
 
@@ -92,6 +92,7 @@ service Outbox{
             relayRequest.brokerOptions << request.brokerOptions
             
             startReadingMessages@RelayService( relayRequest )( relayResponse )
+
             response << relayResponse
             global.M_MessageBroker = "Kafka"
         }]
@@ -105,8 +106,8 @@ service Outbox{
                 install (ConnectionError => {response = "Call to update before connecting"} )
 
                 updateMessagesTableQuery = "INSERT INTO messages (kafkaKey, kafkaValue) VALUES (\"" + request.key + "\", \"" + request.value + "\");" 
-                transactionRequest.statement[0] = updateMessagesTableQuery
-                transactionRequest.statement[1] = request.sqlQuery
+                transactionRequest.statement << request.sqlQuery
+                transactionRequest.statement[#transactionRequest.statement] = updateMessagesTableQuery
                 println@Console( "Initiating transactional update with queries: " )(  )
                 println@Console("\t" + transactionRequest.statement[0] + "\n\t" + transactionRequest.statement[1])()
 

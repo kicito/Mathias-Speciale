@@ -65,7 +65,7 @@ service ServiceA{
         with ( kafkaOptions )
         {
             .topic =  "service-a-local-updates"
-            .bootstrapServers = "kafka:9092"
+            .bootstrapServers = "localhost:9092"
             .groupId = "test-group"
         }
 

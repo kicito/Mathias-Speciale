@@ -1,21 +1,20 @@
 include "database.iol"
-include "time.iol"
 include "console.iol"
+include "time.iol"
 
 from .outboxService import Outbox
 
-type UpdateDatabaseRequest{
-    .userToUpdate: string
+type InboxUpdatedResponse {
+    .amountMessagesRead: int
 }
 
-type UpdateDatabaseResponse {
-    .code: int
-    .reason: string
+type InboxUpdatedRequest {
+    .databaseConnectionInfo: ConnectionInfo
 }
 
 interface ChoreographyParticipantInterface {
     RequestResponse:
-        updateNumberForUser( UpdateDatabaseRequest )( UpdateDatabaseResponse )
+        inboxUpdated( InboxUpdatedRequest )( InboxUpdatedResponse )
 }
 
 service ServiceB{
@@ -59,7 +58,7 @@ service ServiceB{
         with ( kafkaOptions )
         {
             .topic =  "service-b-local-updates"
-            .bootstrapServers =  "kafka:9092"
+            .bootstrapServers =  "localhost:9092"
             .groupId = "test-group"
         }
 
@@ -82,24 +81,50 @@ service ServiceB{
                 "number int)";
             update@Database( updaterequest )( ret )
         }
+
+        checkInbox
+    }
+
+    define checkInbox{
+        install( SQLException => println@Console("SQL Exception when checking inbox")() )
+        // Read all messages in inbox
+            // For each message m in inbox:
+                // Call transactional outbox with queries that:
+                    // Updates local state
+                    // Deletes message m in inbox
+                    // Inserts new message in outbox
+
+        connect@Database( connectionInfo )( )       // This is referencing the connectionInfo that was set in 'init'
+        query@Database( "SELECT * FROM inbox" )( inboxMessages )
+
+        for ( row in inboxMessages.row ) {
+            
+            // Construct query which update local state:
+            localUpdateQuery = "UPDATE Numbers SET number = number + 1 WHERE username = \"" + row.kafkaKey + "\""
+            println@Console(localUpdateQuery)()
+
+            // Construct query to delete message 'row' from inbox table
+            inboxDeleteQuery = "DELETE FROM inbox WHERE kafkaOffset = " + row.kafkaOffset
+
+            scope (ExecuteQueries){
+                install ( SQLException => println@Console( "SQL exception while trying to insert data" )( ) )
+                updateQuery.sqlQuery[0] = localUpdateQuery
+                updateQuery.sqlQuery[1] = inboxDeleteQuery
+            
+                updateQuery.topic = "service-b-local-updates"
+                updateQuery.key = row.kafkaKey
+                updateQuery.value = "Updated number for " + row.kafkaKey
+                transactionalOutboxUpdate@OutboxService( updateQuery )( updateResponse )
+            }
+        }
+        
+        println@Console("Service B has updated locally")()
+        response.amountMessagesRead = #inboxMessages.row
     }
 
     main {
-        [updateNumberForUser( request )( response ){
-            scope ( InsertData )    //Update the number in the database
-            {   
-                println@Console("updateNumberForUser called with username " + request.userToUpdate)()
-                install ( SQLException => println@Console( "SQL exception while trying to insert data" )( ) )
-                updateQuery.sqlQuery = "UPDATE Numbers SET number = number + 1 WHERE username = \"" + request.userToUpdate + "\""
-                updateQuery.topic = "service-b-local-updates"
-                updateQuery.key = request.userToUpdate
-                updateQuery.value = "Updated number for " + request.userToUpdate
-                transactionalOutboxUpdate@OutboxService( updateQuery )( updateResponse )
-                println@Console("Service B has updated locally")()
-                response.code = 200
-                response.reason = "Updated number locally"
-            }
-            
+        [inboxUpdated( request )( response ){
+            checkInbox
         }]
     }
 }

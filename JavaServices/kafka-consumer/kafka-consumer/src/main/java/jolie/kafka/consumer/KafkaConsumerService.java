@@ -42,7 +42,7 @@ public class KafkaConsumerService extends JavaService {
         props.setProperty("group.id", kafkaOptions.getFirstChild("groupId").strValue());
         props.setProperty("max.poll.records", pollOptions.getFirstChild("pollAmount").strValue());
 
-        props.setProperty("enable.auto.commit", "false");
+        props.setProperty("enable.auto.commit", "true");
         props.setProperty("auto.offset.reset", "earliest");
         props.setProperty("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         props.setProperty("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
