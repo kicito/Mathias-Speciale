@@ -24,8 +24,12 @@ services:
 
   service_a:
     image: maje419/thesis:service_a_image_1.0
+    depends_on:
+      - kafka
     ports:
       - 8080:8080
 
   service_b:
     image: maje419/thesis:service_b_image_1.0
+    depends_on:
+      - kafka

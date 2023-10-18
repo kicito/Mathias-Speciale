@@ -11,13 +11,14 @@
     "pollAmount": 3
   },
   "kafkaInboxOptions": {
-    "bootstrapServers": "localhost:9092",
+    "bootstrapServers": "kafka:9092",
     "groupId": "service-a-inbox",
     "topic": "service-b-local-updates"
   },
   "kafkaOutboxOptions": {
-    "bootstrapServers": "localhost:9092",
+    "bootstrapServers": "kafka:9092",
     "groupId": "service-a-outbox",
+    "clientId": "kafkaProducerA",
     "topic": "service-a-local-updates"
   }
 }

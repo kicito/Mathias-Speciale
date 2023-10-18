@@ -27,9 +27,13 @@ public class KafkaRelayer extends JavaService {
         props.put(
                 "group.id",
                 input.getFirstChild("brokerOptions").getFirstChild("groupId").strValue());
+        props.put(
+                "client.id",
+                input.getFirstChild("brokerOptions").getFirstChild("clientId").strValue());
 
         // For now, these values are non-configurable
         props.put("enable.auto.commit", "true");
+        props.put("client.id", "testclient001");
         props.put("auto.commit.interval.ms", "500");
         props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");

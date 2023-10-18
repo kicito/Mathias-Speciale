@@ -57,13 +57,13 @@ service MessageForwarderService{
 
                     for ( databaseMessage in pulledMessages.row ){
                         kafkaMessage.topic = request.brokerOptions.topic
-                        kafkaMessage.key = databaseMessage.(request.columnSettings.keyColumn)
-                        kafkaMessage.value = databaseMessage.(request.columnSettings.valueColumn)
+                        kafkaMessage.key = databaseMessage.kafkaKey
+                        kafkaMessage.value = databaseMessage.kafkaValue
                         kafkaMessage.brokerOptions << request.brokerOptions
 
                         propagateMessage@KafkaInserter( kafkaMessage )( kafkaResponse )
                         if (kafkaResponse.status == 200) {
-                            deleteQuery = "DELETE FROM outbox WHERE " + ( request.columnSettings.idColumn ) + " = " + databaseMessage.(request.columnSettings.idColumn)
+                            deleteQuery = "DELETE FROM outbox WHERE  mid = " + databaseMessage.mid
                             println@Console( "OutboxMessageForwarder: \tExecuting query '" + deleteQuery + "'")(  )
                             update@Database( deleteQuery )( updateResponse )
                         }
