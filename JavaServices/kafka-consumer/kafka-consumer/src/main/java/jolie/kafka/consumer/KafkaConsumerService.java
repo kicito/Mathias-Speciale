@@ -2,14 +2,12 @@ package jolie.kafka.consumer;
 
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Map;
 import java.util.Properties;
-import java.util.stream.Collectors;
 
 //  Kafka imports
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
-import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.RebalanceInProgressException;
+import org.apache.kafka.clients.consumer.CommitFailedException;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 
@@ -34,6 +32,7 @@ public class KafkaConsumerService extends JavaService {
      *              from the kafka queue per poll
      */
     public Value Initialize(Value input) {
+        Value response = Value.create();
         Properties props = new Properties();
         Value kafkaOptions = input.getFirstChild("brokerOptions");
         Value pollOptions = input.getFirstChild("pollOptions");
@@ -42,7 +41,7 @@ public class KafkaConsumerService extends JavaService {
         props.setProperty("group.id", kafkaOptions.getFirstChild("groupId").strValue());
         props.setProperty("max.poll.records", pollOptions.getFirstChild("pollAmount").strValue());
 
-        props.setProperty("enable.auto.commit", "true");
+        props.setProperty("enable.auto.commit", "false");
         props.setProperty("auto.offset.reset", "earliest");
         props.setProperty("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         props.setProperty("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
@@ -53,7 +52,6 @@ public class KafkaConsumerService extends JavaService {
             consumer.subscribe(Arrays.asList(topic));
         }
 
-        Value response = Value.create();
         response.getFirstChild("topic").setValue(topic);
         response.getFirstChild("bootstrapServers").setValue(props.getProperty("bootstrap.servers"));
         response.getFirstChild("groupId").setValue(props.getProperty("group.id"));
@@ -72,11 +70,11 @@ public class KafkaConsumerService extends JavaService {
         Value response = Value.create();
         synchronized (lock) {
             if (consumer != null) {
-                response.getFirstChild("status").setValue(200);
+                response.getFirstChild("status").setValue(0);
                 records = consumer.poll(Duration.ofMillis(timeout));
             } else {
                 System.out.println("Consumer not initialized!");
-                response.getFirstChild("status").setValue(400);
+                response.getFirstChild("status").setValue(1);
             }
         }
 
@@ -102,20 +100,20 @@ public class KafkaConsumerService extends JavaService {
      * @return
      */
     public Value Commit(Value input) {
-        long offset = input.getFirstChild("offset").longValue() + 1; // +1 since we're committing what the offset of the
-                                                                     // NEXT message is
-        Map<TopicPartition, OffsetAndMetadata> topics;
-        synchronized (lock) {
-            topics = consumer.partitionsFor(topic)
-                    .stream()
-                    .map(x -> new TopicPartition(x.topic(), x.partition()))
-                    .collect(Collectors.toMap(x -> x,
-                            x -> new OffsetAndMetadata(offset, topic)));
-            consumer.commitSync(topics);
-        }
-
         Value response = Value.create();
-        response.getFirstChild("response").setValue("Committed offset " + offset + " for topic " + topic);
+        long offset = input.getFirstChild("offset").longValue() + 1; // +1 since we're committing what the offset of the
+        // NEXT message
+        try {
+            synchronized (lock) {
+                consumer.commitSync();
+            }
+            response.getFirstChild("reason").setValue("Committed offset " + offset + " for topic " + topic);
+            response.getFirstChild("status").setValue(1);
+
+        } catch (CommitFailedException | RebalanceInProgressException ex) {
+            response.getFirstChild("reason").setValue(ex.getMessage());
+            response.getFirstChild("status").setValue(0);
+        }
         return response;
     }
 }

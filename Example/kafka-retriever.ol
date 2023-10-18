@@ -22,7 +22,8 @@ type CommitRequest {
 }
 
 type CommitResponse {
-    .response: string
+    .status: int
+    .reason: string
 }
 
 interface SimpleKafkaConsumerInterface {

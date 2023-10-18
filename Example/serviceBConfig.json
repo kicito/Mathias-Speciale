@@ -1,0 +1,23 @@
+{
+  "serviceBConnectionInfo": {
+    "password": "",
+    "database": "file:serviceBDb.sqlite",
+    "driver": "sqlite",
+    "host": "",
+    "username": ""
+  },
+  "pollOptions": {
+    "pollDurationMS": 3000,
+    "pollAmount": 3
+  },
+  "kafkaInboxOptions": {
+    "bootstrapServers": "localhost:9092",
+    "groupId": "service-b-inbox",
+    "topic": "service-a-local-updates"
+  },
+  "kafkaOutboxOptions": {
+    "bootstrapServers": "localhost:9092",
+    "groupId": "service-b-outbox",
+    "topic": "service-b-local-updates"
+  }
+}

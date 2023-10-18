@@ -1,6 +1,8 @@
 include "console.iol"
 include "database.iol"
 include "time.iol"
+include "file.iol"
+include "runtime.iol"
 
 from .kafka-retriever import KafkaConsumer
 from .serviceB import ServiceB
@@ -11,7 +13,7 @@ type KafkaOptions: void {
     .topic: string
 }
 
-type RabbitMqOptions {      // Not implemented
+type RabbitMqOptions {      // Not implemented ( yet )
     .bootstrapServers: string
     .groupId: string
 }
@@ -37,42 +39,22 @@ service Inbox{
     embed ServiceB as ServiceB
     embed KafkaConsumer as KafkaConsumer
 
-    main
+        main
     {
-        println@Console( "Initializing inboxservice" )()
-        with ( pollOptions )
-        {
-            .pollAmount = 3;
-            .pollDurationMS = 3000
-        };
+        readFile@File(
+            {
+                filename = "serviceBConfig.json"
+                format = "json"
+            }) ( config )
 
-        with ( connectionInfo ) 
-        {
-            .username = "";
-            .password = "";
-            .host = "";
-            .database = "file:database.sqlite"; // "." for memory-only
-            .driver = "sqlite"
-        }
-
-        with ( kafkaOptions )
-        {
-            .bootstrapServers =  "localhost:9092";
-            .groupId = "service-b-inbox";
-            .topic = "service-a-local-updates"
-        };
-
-        // Initialize Inbox Service
         with ( inboxSettings ){
-            .pollOptions << pollOptions;
-            .brokerOptions << kafkaOptions
+            .pollOptions << config.pollOptions;
+            .brokerOptions << config.kafkaInboxOptions
         }
-
-        connect@Database( connectionInfo )( void )
 
         scope ( createtable ) 
         {
-            install ( sqlexception => println@Console("inbox table already exists")() )
+            connect@Database(config.serviceBConnectionInfo)()
             update@Database( "CREATE TABLE IF NOT EXISTS inbox (kafkaKey VARCHAR(50), kafkaValue VARCHAR (150), kafkaOffset INTEGER PRIMARY KEY AUTOINCREMENT);" )( ret )
         }
 
@@ -82,24 +64,47 @@ service Inbox{
         while (true) {
             Consume@KafkaConsumer( consumeRequest )( consumeResponse )
 
-            for ( i = 0, i < #consumeResponse.messages, i++ ) {
-                scope ( MakeIdempotent ){
-                    install( SQLException => println@Console("Trying to insert message into inbox twice!")() )
-                    println@Console( "Recieved a message from kafka! Forwarding to main service!" )()
-                    inboxUpdate.key = consumeResponse.messages[i].key
-                    inboxUpdate.value = consumeResponse.messages[i].value
-                    inboxUpdate.offset = consumeResponse.messages[i].offset
-                    update@Database( "INSERT INTO inbox VALUES (\"" + inboxUpdate.key + "\", \"" + inboxUpdate.value + "\", " + inboxUpdate.offset + ")" )( inboxResponse )
+            i = 0
+            while (i < #consumeResponse.messages) {
+                println@Console( "InboxService: \tRecieved a message on topic " + consumeResponse.messages[i].topic + " at offset: " + consumeResponse.messages[i].offset )()
 
-                    inboxUpdateRequest.databaseConnectionInfo << connectionInfo
-                    inboxUpdated@ServiceB( inboxUpdateRequest )( inboxUpdateResponse )
-                    if ( simpleconsumerResponse.amountMessagesRead > 0 ){
-                        //Commit@KafkaConsumer( commitRequest )( commitResponse )
-                        println@Console( "Sucessfully forwarded to main service, which processed " + simpleconsumerResponse.amountMessagesRead + " messages.")()
-                    }
-                }
                 
+                scope ( MakeIdempotent ){
+                    // Write the message to the inbox table
+                    install( SQLException => {
+                        println@Console("InboxService: \tTrying to insert message into inbox twice!")()
+                        commitRequest.offset = consumeResponse.messages[i].offset
+                        Commit@KafkaConsumer( commitRequest )( commitResponse )
+                        i++
+                    })
+
+                    key = consumeResponse.messages[i].key
+                    value = consumeResponse.messages[i].value
+                    offset = consumeResponse.messages[i].offset
+
+                    update@Database( "INSERT INTO inbox VALUES (\"" + key + "\", \"" + value + "\", " + offset + ")" )( inboxResponse )
+                    
+                    if ( inboxResponse == 1 ){
+                        // If the message was written correctly, tell kafka that we've read the message
+                        commitRequest.offset = i
+                        Commit@KafkaConsumer( commitRequest )( commitResponse )
+                        println@Console( "InboxService: \t Message inserted correctly into table" )( )
+                    } else {
+                        // Break out of the 'for' loop, under the assumption that the database is unresponsive
+                        i = #consumeResponse.messages
+                    }
+
+                    if ( commitResponse.status == 1 ){
+                        // When Kafka acknowledges that it has moved its offset, tell main service that a new message is waiting
+                        inboxUpdated@ServiceB( "Inbox Updated! Please check it :D" )( inboxUpdateResponse )
+                    } else {
+                        // Break inner loop under the assumption that Kafka is unresponsive
+                        i = #consumeResponse.messages
+                    }
+                    i++
+                }
             }
+            sleep@Time( 100 )(  )
         }
     }
 }

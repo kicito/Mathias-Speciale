@@ -1,6 +1,7 @@
 include "console.iol"
 include "time.iol"
 include "database.iol"
+include "file.iol"
 
 from .kafka-retriever import KafkaConsumer
 from .serviceA import ServiceA
@@ -39,38 +40,67 @@ service Inbox{
 
     main
     {
-        println@Console( "Initializing inboxservice" )()
+        readFile@File(
+            {
+                filename = "serviceAConfig.json"
+                format = "json"
+            }) ( config )
 
-        with ( pollOptions )
-        {
-            .pollAmount = 3;
-            .pollDurationMS = 3000
-        };
-
-        with ( kafkaOptions )
-        {
-            .bootstrapServers =  "localhost:9092";
-            .groupId = "service-a-inbox";
-            .topic = "service-b-local-updates"
-        };
-
-        // Initialize Inbox Service
         with ( inboxSettings ){
-            .pollOptions << pollOptions;
-            .brokerOptions << kafkaOptions
+            .pollOptions << config.pollOptions;
+            .brokerOptions << config.kafkaInboxOptions
+        }
+
+        scope ( createtable ) 
+        {
+            connect@Database(config.serviceAConnectionInfo)()
+            update@Database( "CREATE TABLE IF NOT EXISTS inbox (kafkaKey VARCHAR(50), kafkaValue VARCHAR (150), kafkaOffset INTEGER PRIMARY KEY AUTOINCREMENT);" )( ret )
         }
 
         Initialize@KafkaConsumer( inboxSettings )( initializedResponse )
         consumeRequest.timeoutMs = 3000
+
         while (true) {
             Consume@KafkaConsumer( consumeRequest )( consumeResponse )
-            for ( i = 0, i < #consumeResponse.messages, i++ ) {
-                println@Console( "Recieved a message from kafka! Forwarding to main service!" )()
-                numberCorrectlyUpdated@ServiceA( "Done" )( serviceAresponse )
-                if ( serviceAresponse.code == 200 ){
-                    commitRequest.offset = consumeResponse.messages[i].offset
-                    Commit@KafkaConsumer( commitRequest )( commitResponse )
-                    println@Console( "Sucessfully forwarded service. Commited offset: " + commitRequest.offset )()
+
+            i = 0
+            while (i < #consumeResponse.messages) {
+                println@Console( "InboxService: \tRecieved a message on topic " + consumeResponse.messages[i].topic + " at offset: " + consumeResponse.messages[i].offset )()
+
+                
+                scope ( MakeIdempotent ){
+                    // Write the message to the inbox table
+                    install( SQLException => {
+                        println@Console("InboxService: \tTrying to insert message into inbox twice!")()
+                        commitRequest.offset = consumeResponse.messages[i].offset
+                        Commit@KafkaConsumer( commitRequest )( commitResponse )
+                        i++
+                    })
+
+                    key = consumeResponse.messages[i].key
+                    value = consumeResponse.messages[i].value
+                    offset = consumeResponse.messages[i].offset
+
+                    update@Database( "INSERT INTO inbox VALUES (\"" + key + "\", \"" + value + "\", " + offset + ")" )( inboxResponse )
+                    
+                    if ( inboxResponse == 1 ){
+                        // If the message was written correctly, tell kafka that we've read the message
+                        commitRequest.offset = i
+                        Commit@KafkaConsumer( commitRequest )( commitResponse )
+                        println@Console( "InboxService: \t Message inserted correctly into table" )( )
+                    } else {
+                        // Break out of the 'for' loop, under the assumption that the database is unresponsive
+                        i = #consumeResponse.messages
+                    }
+
+                    if ( commitResponse.status == 1 ){
+                        // When Kafka acknowledges that it has moved its offset, tell main service that a new message is waiting
+                        inboxUpdated@ServiceA( "Inbox Updated! Please check it :D" )( inboxUpdateResponse )
+                    } else {
+                        // Break inner loop under the assumption that Kafka is unresponsive
+                        i = #consumeResponse.messages
+                    }
+                    i++
                 }
             }
             sleep@Time( 1000 )(  )

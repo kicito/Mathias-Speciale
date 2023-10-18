@@ -39,9 +39,10 @@ type StatusResponse {
 
 interface OutboxInterface{
     RequestResponse:
-        connectKafka( ConnectOutboxRequest ) ( StatusResponse ),
-        connectRabbitMq( ConnectOutboxRequest ) ( StatusResponse ),
         transactionalOutboxUpdate( UpdateOutboxRequest )( StatusResponse )
+    OneWay:
+        connectKafka( ConnectOutboxRequest ),
+        connectRabbitMq( ConnectOutboxRequest )
 }
 
 /**
@@ -57,24 +58,24 @@ service Outbox{
     embed MessageForwarderService as RelayService
 
     main {
-        [connectRabbitMq( request )( response ){
+        [connectRabbitMq( request )]{
             response.status = 500
             response.reason = "Not implemented yet"
 
             global.M_MessageBroker = "RabbitMq"
-        }]
+        }
 
         /*
         * Connect to a Kafka version of this service.
         */
-        [connectKafka( request ) ( response ){            
-            println@Console("Initializing connection to Kafka")();
+        [connectKafka( request ) ]{            
+            println@Console("OutboxService: \tInitializing connection to Kafka")();
             connect@Database( request.databaseConnectionInfo )( void )
             scope ( createMessagesTable )
             {
                 install ( SQLException => {
-                    println@Console("Error when creating the messages table for the outbox!")();
-                    response.reason = "Error when creating the messages table for the outbox!";
+                    println@Console("Error when creating the outbox table for the outbox!")();
+                    response.reason = "Error when creating the outbox table for the outbox!";
                     resposnse.code = 500
                     })
 
@@ -91,11 +92,10 @@ service Outbox{
             relayRequest.columnSettings.idColumn = "mid"
             relayRequest.brokerOptions << request.brokerOptions
             
-            startReadingMessages@RelayService( relayRequest )( relayResponse )
+            startReadingMessages@RelayService( relayRequest )
 
-            response << relayResponse
             global.M_MessageBroker = "Kafka"
-        }]
+        }
 
 
         /*
@@ -105,11 +105,11 @@ service Outbox{
             if (global.M_MessageBroker == "Kafka"){
                 install (ConnectionError => {response = "Call to update before connecting"} )
 
-                updateMessagesTableQuery = "INSERT INTO messages (kafkaKey, kafkaValue) VALUES (\"" + request.key + "\", \"" + request.value + "\");" 
+                updateMessagesTableQuery = "INSERT INTO outbox (kafkaKey, kafkaValue) VALUES (\"" + request.key + "\", \"" + request.value + "\");" 
                 transactionRequest.statement << request.sqlQuery
                 transactionRequest.statement[#transactionRequest.statement] = updateMessagesTableQuery
-                println@Console( "Initiating transactional update with queries: " )(  )
-                println@Console("\t" + transactionRequest.statement[0] + "\n\t" + transactionRequest.statement[1])()
+                println@Console( "OutboxService: \tInitiating transactional update with queries " )( )
+                println@Console("\t\t" + transactionRequest.statement[0] + "\n\t\t" + transactionRequest.statement[1] + "\n\t\t" + transactionRequest.statement[2])()
 
                 executeTransaction@Database( transactionRequest )( transactionResponse )
                 response.status = 200

@@ -1,6 +1,7 @@
 include "database.iol"
 include "console.iol"
 include "time.iol"
+include "file.iol"
 
 from .outboxService import Outbox
 
@@ -18,7 +19,7 @@ type UpdateNumberResponse: string
 interface ChoreographyInitializerInterface{
     RequestResponse:
         updateNumber( UpdateNumberRequest )( UpdateNumberResponse ),
-        numberCorrectlyUpdated( string ) ( LocalUpdateResponse ) 
+        inboxUpdated( string ) ( LocalUpdateResponse ) 
 }
 
 service ServiceA{
@@ -47,37 +48,22 @@ service ServiceA{
     init
     {
         println@Console("Initializing main service")()
-        with ( connectionInfo ) 
-        {
-            .username = "";
-            .password = "";
-            .host = "";
-            .database = "file:serviceADb.sqlite"; // "." for memory-only
-            .driver = "sqlite"
-        }
-        
-        with ( pollSettings )
-        {
-            .pollAmount = 3
-            .pollDurationMS = 3000
-        }
 
-        with ( kafkaOptions )
-        {
-            .topic =  "service-a-local-updates"
-            .bootstrapServers = "localhost:9092"
-            .groupId = "test-group"
-        }
+        readFile@File(
+            {
+                filename = "serviceAConfig.json"
+                format = "json"
+            }) ( config )
 
         with ( outboxSettings )
         {
-            .pollSettings << pollSettings;
-            .databaseConnectionInfo << connectionInfo;
-            .brokerOptions << kafkaOptions
+            .pollSettings << config.pollOptions;
+            .databaseConnectionInfo << config.serviceAConnectionInfo;
+            .brokerOptions << config.kafkaOutboxOptions
         }
         
-        connectKafka@OutboxService( outboxSettings ) ( outboxResponse )
-        connect@Database( connectionInfo )( void )
+        connectKafka@OutboxService( outboxSettings )
+        connect@Database( config.serviceAConnectionInfo )( void )
 
         scope ( createTable ) 
         {
@@ -89,14 +75,31 @@ service ServiceA{
         }
     }
 
+    define checkInbox{
+        query@Database( "SELECT * FROM inbox" )( inboxMessages )
+        for ( row in inboxMessages.row ) {
+            inboxDeleteQuery = "DELETE FROM inbox WHERE kafkaOffset = " + row.kafkaOffset
+            println@Console("ServiceA: Choreography completed! Deleting inbox message for offset " + row.kafkaOffset)()
+            update@Database(inboxDeleteQuery)()
+        }
+    }
+
     main {
         [ updateNumber( request )( response )
         {
-            println@Console("UpdateNumber called with username " + request.username)()
+            println@Console("ServiceA: \tUpdateNumber called with username " + request.username)()
             scope ( InsertData )    //Update the number in the database
             {   
-                install ( SQLException => println@Console( "SQL exception while trying to insert data" )( ) )
-                updateQuery.sqlQuery = "UPDATE Numbers SET number = number + 1 WHERE username = \"" + request.username + "\""
+                //install ( SQLException => println@Console( "SQL exception while trying to insert data" )( ) )
+
+                connect@Database(config.serviceAConnectionInfo)()
+                query@Database("SELECT * FROM Numbers WHERE username = \"" + request.username + "\"")( userExists )
+
+                if (#userExists.row < 1){
+                    updateQuery.sqlQuery = "INSERT INTO Numbers VALUES (\"" + request.username + "\", 0);"
+                } else{
+                    updateQuery.sqlQuery = "UPDATE Numbers SET number = number + 1 WHERE username = \"" + request.username + "\""
+                }
                 updateQuery.topic = "service-a-local-updates"
                 updateQuery.key = request.username
                 updateQuery.value = "Updated number for " + request.username
@@ -105,10 +108,11 @@ service ServiceA{
             }
         }]
 
-        [numberCorrectlyUpdated( req )( res )
+        [inboxUpdated( req )( res )
         {
-            println@Console("Choreography completed!")()
-            res.code = 200
+            connect@Database(config.serviceAConnectionInfo)()
+            checkInbox
+            res.code = 1
             res.reason = "Choreography completed!"
         }]
     }

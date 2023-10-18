@@ -26,7 +26,7 @@ type ForwarderResponse{
 }
 
 interface MessageForwarderInterface {
-    RequestResponse: startReadingMessages ( ForwarderServiceInfo ) ( StatusResponse )
+    OneWay: startReadingMessages ( ForwarderServiceInfo )
 }
 
 /**
@@ -43,39 +43,29 @@ service MessageForwarderService{
 
     /** Starts this service reading continually from the 'Messages' table */
     main{
-        [startReadingMessages( request )( response ) 
-        {
-            scope (ConnectToDatabase){      // Everything in this scope is simply to check that a connection to the database CAN be opened.
-                install (ConnectionError => 
-                {
-                    response.status = 500
-                    response.reason = "MessageForwarderService could not connect to the database"
-                    println@Console( "MessageForwarderService could not connect to the database" )(  )
-
-                })
-                global.M_KafkaOptions << request.brokerOptions
-                response.status = 200
-                response.reason = "MessageForwarderService initialized sucessfully"
-            }
-        }] 
+        [startReadingMessages( request )] 
         {
             connect@Database( request.databaseConnectionInfo )( void )  // I very much hate that i have to do this again, and i CANNOT simply keep the connection from above open
-            println@Console( "Started forwarding messages into Kafka" )(  )
+            println@Console( "OutboxMessageForwarder: \tInitialized" )(  )
             
             // Keep polling for messages at a given interval.
             while(true) {
-                query = "SELECT * FROM messages LIMIT " + request.pollSettings.pollAmount
-                query@Database(query)( pulledMessages )
+                query = "SELECT * FROM outbox LIMIT " + request.pollSettings.pollAmount
+                query@Database( query )( pulledMessages )
                 if (#pulledMessages.row > 0){
-                    println@Console( "Forwarding " +  #pulledMessages.row + " messages into kafka!")(  )
+                    println@Console( "OutboxMessageForwarder: \tForwarding " +  #pulledMessages.row + " messages into kafka!")(  )
+
                     for ( databaseMessage in pulledMessages.row ){
                         kafkaMessage.topic = request.brokerOptions.topic
                         kafkaMessage.key = databaseMessage.(request.columnSettings.keyColumn)
                         kafkaMessage.value = databaseMessage.(request.columnSettings.valueColumn)
-                        kafkaMessage.brokerOptions << global.M_KafkaOptions
+                        kafkaMessage.brokerOptions << request.brokerOptions
+
                         propagateMessage@KafkaInserter( kafkaMessage )( kafkaResponse )
                         if (kafkaResponse.status == 200) {
-                            update@Database( "DELETE FROM messages WHERE " + ( request.columnSettings.idColumn ) + " = " + databaseMessage.(request.columnSettings.idColumn) )( updateResponse )
+                            deleteQuery = "DELETE FROM outbox WHERE " + ( request.columnSettings.idColumn ) + " = " + databaseMessage.(request.columnSettings.idColumn)
+                            println@Console( "OutboxMessageForwarder: \tExecuting query '" + deleteQuery + "'")(  )
+                            update@Database( deleteQuery )( updateResponse )
                         }
                     }
                 }
