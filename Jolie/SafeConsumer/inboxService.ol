@@ -1,80 +1,92 @@
 include "console.iol"
 include "time.iol"
 include "database.iol"
+include "inboxTypes.iol"
+include "simpleConsumerInterface.iol"
 
+from runtime import Runtime
+service Inbox(p: InboxEmbeddingConfig){
+    execution: concurrent
 
-from .simple-kafka-connector import KafkaConsumer
-from .simpleConsumer import SimpleConsumer
-
-type KafkaOptions: void {   
-    .bootstrapServer: string                   // The URL of the kafka server to connect to, e.g. "localhost:9092"
-    .groupId: string                            // The group id of the kafka cluster to send messages to
-    .topic: string
-}
-
-type RabbitMqOptions {      // Not implemented
-    .bootstrapServers: string
-    .groupId: string
-}
-
-type PollOptions: void{
-    .pollDurationMS: int                        // How often the MessageForwarderService should check the database for new messages,
-    .pollAmount: int                            // The amount of messages which are read from the 'messages' table per duration
-}
-
-type InitializeConsumerRequest{
-    .pollOptions: PollOptions
-    .brokerOptions: KafkaOptions
-}
-
-interface InboxInterface{
-}
-
-service Inbox{
-    inputPort InboxPort {
-        Location: "local"
-        Interfaces: InboxInterface
+    // This service takes over handling of the external endpoint from the embedder
+    inputPort ExternalInput {
+        location: "socket://localhost:8082"     //It would be nice if this could be sent with as a parameter
+        protocol: http{
+            format = "json"
+        }
+        Interfaces: 
+            SimpleConumerInterface
     }
-    embed SimpleConsumer as SimpleConsumer
-    embed KafkaConsumer as KafkaConsumer
 
-    main
-    {
-        with ( pollOptions )
-        {
-            .pollAmount = 3;
-            .pollDurationMS = 3000
-        };
-
-        with ( kafkaOptions )
-        {
-            .bootstrapServer =  "localhost:9092";
-            .groupId = "test-group";
-            .topic = "local-demo"
-        };
-
-        // Initialize Inbox Service
-        with ( inboxSettings ){
-            .pollOptions << pollOptions;
-            .brokerOptions << kafkaOptions
+    // Used for embedding services to talk with the inbox
+    inputPort InboxInput {
+        location: "local"
+        protocol: http{
+            format = "json"
         }
+        interfaces: 
+            SimpleConumerInterface,
+            InboxInterface
+    }
 
-        Initialize@KafkaConsumer( inboxSettings )( initializedResponse )
-        consumeRequest.timeoutMs = 3000
-        while (true) {
-            Consume@KafkaConsumer( consumeRequest )( consumeResponse )
-            println@Console( "InboxService: Received " + #consumeResponse.messages + " messages from KafkaConsumerService" )(  )
+    // Used when forwarding messages back to embedder
+    outputPort ConsumerInput {
+        location: "local"   // Overwritten in init
+        protocol: http{
+            format = "json"
+        }
+        interfaces: SimpleConumerInterface
+    }
+    embed Runtime as Runtime
 
-            for ( i = 0, i < #consumeResponse.messages, i++ ) {
-                println@Console( "InboxService: Retrieved message: " + consumeResponse.messages[i].value + " at offset " + consumeResponse.messages[i].offset)( )
-                updateNumberRequest.userToUpdate = consumeResponse.messages[i].key
-                UpdateNumberForUser@SimpleConsumer( updateNumberRequest )( simpleconsumerResponse )
-                if ( simpleconsumerResponse.code == 200 ){
-                    commitRequest.offset = consumeResponse.messages[i].offset
-                    Commit@KafkaConsumer( commitRequest )( commitResponse )
-                }
+    init {
+        ConsumerInput.location << p.localLocation
+        ExternalInput.location << p.externalLocation
+
+        getLocalLocation@Runtime(  )( localLocation )   
+        loadEmbeddedService@Runtime({
+            filepath = "messageRetriever.ol"
+            params << {
+                localLocation << localLocation
             }
-            sleep@Time( 1000 )(  )
-        }
+        })( MessageRetriever.location )
+        println@Console( "Hey22" )(  )
+    }
+
+    main {
+        [UpdateNumberForUser( req )( res ){
+            println@Console("Hello from InboxService!")()
+            connectionInfo << p.connectionInfo 
+            scope ( MakeIdempotent ){
+                    install( SQLException => {
+                        println@Console("InboxService: \tTrying to insert message into inbox twice!")()
+                        commitRequest.offset = consumeResponse.messages[i].offset
+                        i++
+                    })
+
+            println@Console( "Inbox: Writing message for " + req.userToUpdate + " to table")()
+            connect@Database( connectionInfo )(  )
+            }
+
+
+            response.code = 200
+            response.reason = "Updated number locally"
+        }]
+
+        [RecieveKafka( req )( res ){
+            with ( connectionInfo ) 
+            {
+                .username = "";
+                .password = "";
+                .host = "";
+                .database = "file:database.sqlite"; // "." for memory-only
+                .driver = "sqlite"
+            }
+
+            println@Console( "Inbox: Writing message for " + req + " to table")()
+            connect@Database( connectionInfo )(  )
+
+            res = "Nice"
+        }]
     }
 }

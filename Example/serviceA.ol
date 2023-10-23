@@ -2,52 +2,36 @@ include "database.iol"
 include "console.iol"
 include "time.iol"
 include "file.iol"
+include "serviceAInterface.iol"
 
-from .outboxService import Outbox
-
-type UpdateNumberRequest {
-    .username : string
-}
-
-type LocalUpdateResponse {
-    .code: int
-    .reason: string
-}
-
-type UpdateNumberResponse: string
-
-interface ChoreographyInitializerInterface{
-    RequestResponse:
-        updateNumber( UpdateNumberRequest )( UpdateNumberResponse ),
-        inboxUpdated( string ) ( LocalUpdateResponse ) 
-}
+from runtime import Runtime
+from .Outbox.outboxService import Outbox
+from .Inbox.inboxServiceA import Inbox
 
 service ServiceA{
     execution: concurrent
 
-    // This port allows for a curl request to start the choreography
-    //      curl http://localhost:8080/updateNumber?username=user1
-    inputPort ServiceASocket {
-        location: "socket://localhost:8080" 
-        protocol: http{
-            format = "json"
-        }
-        interfaces: ChoreographyInitializerInterface
-    }
-
-    // This port allows for the inbox service to send updates to this service
     inputPort ServiceALocal {
         location: "local" 
         protocol: http{
             format = "json"
         }
-        interfaces: ChoreographyInitializerInterface
+        interfaces: ServiceAInterface
     }
+
+    embed Runtime as Runtime
     embed Outbox as OutboxService
 
     init
     {
-        println@Console("Initializing main service")()
+        getLocalLocation@Runtime()( location )
+        loadEmbeddedService@Runtime( { 
+            filepath = "Inbox/inboxServiceA.ol"
+            params << { 
+                localLocation << location
+                externalLocation << "socket://localhost:8080"       //This doesn't work
+            }
+        } )( inbox.location )
 
         readFile@File(
             {
@@ -84,37 +68,41 @@ service ServiceA{
         }
     }
 
+    //TODO: A third service should really be running, looking for updates to the inbox table and
+    //      forwarding these to the 'main' service. This would cause no messages to be skipped
+
     main {
-        [ updateNumber( request )( response )
+        [ updateNumber( req )( res )
         {
-            println@Console("ServiceA: \tUpdateNumber called with username " + request.username)()
+            println@Console("ServiceA: \tUpdateNumber called with username " + req.username)()
             scope ( InsertData )    //Update the number in the database
             {   
                 //install ( SQLException => println@Console( "SQL exception while trying to insert data" )( ) )
 
                 connect@Database(config.serviceAConnectionInfo)()
-                query@Database("SELECT * FROM Numbers WHERE username = \"" + request.username + "\"")( userExists )
+                query@Database("SELECT * FROM Numbers WHERE username = \"" + req.username + "\"")( userExists )
 
                 if (#userExists.row < 1){
-                    updateQuery.sqlQuery = "INSERT INTO Numbers VALUES (\"" + request.username + "\", 0);"
+                    updateQuery.sqlQuery = "INSERT INTO Numbers VALUES (\"" + req.username + "\", 0);"
                 } else{
-                    updateQuery.sqlQuery = "UPDATE Numbers SET number = number + 1 WHERE username = \"" + request.username + "\""
+                    updateQuery.sqlQuery = "UPDATE Numbers SET number = number + 1 WHERE username = \"" + req.username + "\""
                 }
                 updateQuery.topic = "service-a-local-updates"
-                updateQuery.key = request.username
-                updateQuery.value = "Updated number for " + request.username
+                updateQuery.key = "updateNumber"
+                updateQuery.value = req.username
                 transactionalOutboxUpdate@OutboxService( updateQuery )( updateResponse )
-                response = "Choreography Started!"
+                res = "Choreography Started!"
             }
         }]
 
-        [inboxUpdated( req )( res )
-        {
+        [finalizeChoreography( req )]{
             connect@Database(config.serviceAConnectionInfo)()
-            checkInbox
-            res.code = 1
-            res.reason = "Choreography completed!"
-        }]
+            query@Database("UPDATE inbox SET hasBeenRead = true WHERE offset = " req)()
+            //TODO: Again, the above query does not consider that the offset is NULL when message is not recieved from Kafka.
+                //  Again, it doesn't matter in this case, since this operation is only exposed to a local channel
+            
+            println@Console("Finished choreography")()
+        }
     }
 }
 

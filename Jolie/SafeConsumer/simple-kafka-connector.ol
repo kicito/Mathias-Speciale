@@ -1,5 +1,4 @@
-from .inboxService import InitializeConsumerRequest
-from .inboxService import KafkaOptions
+include "inboxTypes.iol"
 
 type ConsumeRequest{
     .timeoutMs: long

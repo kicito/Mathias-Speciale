@@ -1,30 +1,4 @@
-from .inboxServiceA import InitializeConsumerRequest
-from .inboxServiceA import KafkaOptions
-
-type ConsumeRequest{
-    .timeoutMs: long
-}
-
-type ConsumerRecord {
-    .status: int
-    .messages*: KafkaMessage
-}
-
-type KafkaMessage {
-    .offset: long
-    .key: string
-    .value: string
-    .topic: string
-}
-
-type CommitRequest {
-    .offset: long
-}
-
-type CommitResponse {
-    .status: int
-    .reason: string
-}
+include "inboxTypes.iol"
 
 interface SimpleKafkaConsumerInterface {
     RequestResponse: 

@@ -1,40 +1,34 @@
 include "database.iol"
 include "time.iol"
 include "console.iol"
+include "simpleConsumerInterface.iol"
 
-type UpdateDatabaseRequest{
-    .userToUpdate: string
-}
-
-type UpdateDatabaseResponse {
-    .code: int
-    .reason: string
-}
-
-interface SimpleConumerInterface{
-    RequestResponse:
-        UpdateNumberForUser( UpdateDatabaseRequest )( UpdateDatabaseResponse )
-}
+from runtime import Runtime
 
 service SimpleConsumer{
-    execution{ sequential }
-    inputPort SimpleConsumerSocket {
-        location: "socket://localhost:8082" 
-        protocol: http{
-            format = "json"
-        }
-        interfaces: SimpleConumerInterface
-    }
-
-    inputPort SimpleConsumer {
+    execution: sequential
+    
+    // Inputport used by the inbox
+    inputPort InternalInputPort {
         location: "local" 
         protocol: http{
             format = "json"
         }
         interfaces: SimpleConumerInterface
     }
+    embed Runtime as Runtime
 
     init {
+        // Load the inbox service
+        getLocalLocation@Runtime(  )( localLocation )
+        loadEmbeddedService@Runtime( { 
+            filepath = "inboxService.ol"
+            params << { 
+                localLocation << localLocation
+                externalLocation << "socket://localhost:8082"
+            }
+        } )( lol )
+
         with ( connectionInfo ) 
         {
             .username = "";

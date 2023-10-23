@@ -37,7 +37,7 @@ public class KafkaConsumerService extends JavaService {
         Value kafkaOptions = input.getFirstChild("brokerOptions");
         Value pollOptions = input.getFirstChild("pollOptions");
 
-        props.setProperty("bootstrap.servers", kafkaOptions.getFirstChild("bootstrapServers").strValue());
+        props.setProperty("bootstrap.servers", kafkaOptions.getFirstChild("bootstrapServer").strValue());
         props.setProperty("group.id", kafkaOptions.getFirstChild("groupId").strValue());
         props.setProperty("max.poll.records", pollOptions.getFirstChild("pollAmount").strValue());
 
@@ -53,7 +53,7 @@ public class KafkaConsumerService extends JavaService {
         }
 
         response.getFirstChild("topic").setValue(topic);
-        response.getFirstChild("bootstrapServers").setValue(props.getProperty("bootstrap.servers"));
+        response.getFirstChild("bootstrapServer").setValue(props.getProperty("bootstrap.servers"));
         response.getFirstChild("groupId").setValue(props.getProperty("group.id"));
         return response;
     }
