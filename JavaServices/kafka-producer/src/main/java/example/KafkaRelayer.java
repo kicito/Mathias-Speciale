@@ -23,7 +23,7 @@ public class KafkaRelayer extends JavaService {
         // Get these values from the request. We might want the rest of the values to
         // also be configurable, but this is future work.
         props.put("bootstrap.servers",
-                input.getFirstChild("brokerOptions").getFirstChild("bootstrapServers").strValue());
+                input.getFirstChild("brokerOptions").getFirstChild("bootstrapServer").strValue());
         props.put(
                 "group.id",
                 input.getFirstChild("brokerOptions").getFirstChild("groupId").strValue());

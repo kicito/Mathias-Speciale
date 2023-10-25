@@ -8,6 +8,8 @@ include "serviceAInterface.iol"
 from runtime import Runtime
 
 service Inbox (p: InboxEmbeddingConfig){
+    execution: concurrent
+
     // Used for embedding services to talk with the inbox
     inputPort InboxInput {
         Location: "local"
@@ -44,6 +46,7 @@ service Inbox (p: InboxEmbeddingConfig){
             filepath = "messageRetrieverService.ol"
             params << {
                 localLocation << localLocation
+                configFile = p.configFile
             }
         })( MessageRetriever.location )
 
@@ -56,8 +59,9 @@ service Inbox (p: InboxEmbeddingConfig){
         scope ( createtable ) 
         {
             connect@Database( config.serviceAConnectionInfo )()
-            update@Database( "CREATE TABLE IF NOT EXISTS inbox (request VARCHAR (150), hasBeenRead BOOLEAN, kafkaOffset INTEGER, UNIQUE(kafkaOffset));" )( ret )
+            update@Database( "CREATE TABLE IF NOT EXISTS inbox (request VARCHAR (150), hasBeenRead BOOLEAN, kafkaOffset INTEGER, rowid INTEGER PRIMARY KEY AUTOINCREMENT, UNIQUE(kafkaOffset));" )( ret )
         }
+        println@Console( "InboxServiceA Initialized" )(  )
     }
     main{
         
@@ -75,12 +79,12 @@ service Inbox (p: InboxEmbeddingConfig){
                     // |———————————————————————————|—————————————|————————|
                     // | 'operation':'parameter(s)'|   'false'   |  NULL  |
                     // |——————————————————————————————————————————————————|
-                update@Database("INSERT INTO inbox VALUES (\"udateNumber:" + req.username + "\", false, NULL")()
+                update@Database("INSERT INTO inbox (request, hasBeenRead, kafkaOffset) VALUES (\"udateNumber:" + req.username + "\", false, NULL)")()
             }
             res << "Message stored"
         }] 
         {
-            updateNumber@EmbedderInput( req.username )( embedderResponse )
+            updateNumber@EmbedderInput( req )( embedderResponse )
         }
 
         [RecieveKafka( req )( res ) {
@@ -88,26 +92,31 @@ service Inbox (p: InboxEmbeddingConfig){
             connect@Database(config.serviceAConnectionInfo)()
             scope( MakeIdempotent ){
                 // If this exception is thrown, Kafka some commit message must have disappeared. Resend it.
-                install( SQLException => {
-                    println@Console("Message already recieved, commit request")();
-                    res = "Message already recieveid, please re-commit"
-                })
+                // install( SQLException => {
+                //     println@Console("Message already recieved, commit request")();
+                //     res = "Message already recieveid, please re-commit"
+                // })
                 // Insert the request into the inbox table in the form:
                     // ___________________________________________________
                     // |            request        | hasBeenRead | offset |
                     // |———————————————————————————|—————————————|————————|
                     // | 'operation':'parameter(s)'|   'false'   | offset |
                     // |——————————————————————————————————————————————————|
-                update@Database("INSERT INTO inbox VALUES (
+                println@Console("QUERY2: " + "INSERT INTO inbox (request, hasBeenRead, kafkaOffset) VALUES (
                     \""+ req.key + ":" + req.value +        // numbersUpdated:user1
                     "\", false, " +                         // false
-                    req.offset)()                           // offset
+                    req.offset + ")" )()
+                update@Database("INSERT INTO inbox (request, hasBeenRead, kafkaOffset) VALUES (
+                    \""+ req.key + ":" + req.value +        // numbersUpdated:user1
+                    "\", false, " +                         // false
+                    req.offset + ")")()                           // offset
             }
             res << "Message stored"
         }] 
         {   
+            //I think this code might get executed before the previous code? Or at least in paralell.
             // In the future, we might use Reflection to hit the correct method in the embedder.
-            finalizeChoreography@EmbedderInput(req.kafkaOffset)
+            finalizeChoreography@EmbedderInput(req.offset)
         }
     }
 }

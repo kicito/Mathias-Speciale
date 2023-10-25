@@ -13,5 +13,5 @@ interface ServiceAInterface{
     RequestResponse:
         updateNumber( UpdateNumberRequest )( UpdateNumberResponse )
     OneWay:
-        finalizeChoreography( void )
+        finalizeChoreography( long )
 }

@@ -114,6 +114,7 @@ public class KafkaConsumerService extends JavaService {
             response.getFirstChild("reason").setValue(ex.getMessage());
             response.getFirstChild("status").setValue(0);
         }
+
         return response;
     }
 }

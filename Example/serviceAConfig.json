@@ -16,7 +16,7 @@
     "topic": "service-b-local-updates"
   },
   "kafkaOutboxOptions": {
-    "bootstrapServers": "localhost:9092",
+    "bootstrapServer": "localhost:9092",
     "groupId": "service-a-outbox",
     "topic": "service-a-local-updates"
   }

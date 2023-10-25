@@ -2,6 +2,7 @@ include "database.iol"
 include "console.iol"
 include "time.iol"
 include "file.iol"
+include "string_utils.iol" 
 include "serviceAInterface.iol"
 
 from runtime import Runtime
@@ -30,6 +31,7 @@ service ServiceA{
             params << { 
                 localLocation << location
                 externalLocation << "socket://localhost:8080"       //This doesn't work
+                configFile = "serviceAConfig.json"
             }
         } )( inbox.location )
 
@@ -62,7 +64,7 @@ service ServiceA{
     define checkInbox{
         query@Database( "SELECT * FROM inbox" )( inboxMessages )
         for ( row in inboxMessages.row ) {
-            inboxDeleteQuery = "DELETE FROM inbox WHERE kafkaOffset = " + row.kafkaOffset
+            inboxDeleteQuery = "UPDATE inbox SET hasBeenRead = true WHERE kafkaOffset = " + row.kafkaOffset
             println@Console("ServiceA: Choreography completed! Deleting inbox message for offset " + row.kafkaOffset)()
             update@Database(inboxDeleteQuery)()
         }
@@ -75,21 +77,36 @@ service ServiceA{
         [ updateNumber( req )( res )
         {
             println@Console("ServiceA: \tUpdateNumber called with username " + req.username)()
+            scope ( UpdateInboxTable )
+            {
+                install( SQLException => println@Console("HERE0")() )
+                connect@Database(config.serviceAConnectionInfo)()
+                query@Database("SELECT * FROM inbox WHERE hasBeenRead = false LIMIT 1")( inboxRow )
+
+                inboxRow.row[0].request.regex = ":"
+                split@StringUtils( inboxRow.row[0].request )( splitResult )
+                username = splitResult.result[1]
+                username.rowId = inboxRow.row[0].rowid
+            }
+
             scope ( InsertData )    //Update the number in the database
             {   
+                install( SQLException => println@Console("HERE1")() )
                 //install ( SQLException => println@Console( "SQL exception while trying to insert data" )( ) )
 
                 connect@Database(config.serviceAConnectionInfo)()
-                query@Database("SELECT * FROM Numbers WHERE username = \"" + req.username + "\"")( userExists )
+                query@Database("SELECT * FROM Numbers WHERE username = \"" + username + "\"")( userExists )
 
                 if (#userExists.row < 1){
-                    updateQuery.sqlQuery = "INSERT INTO Numbers VALUES (\"" + req.username + "\", 0);"
+                    updateQuery.sqlQuery[0] = "INSERT INTO Numbers VALUES (\"" + username + "\", 0);"
                 } else{
-                    updateQuery.sqlQuery = "UPDATE Numbers SET number = number + 1 WHERE username = \"" + req.username + "\""
+                    updateQuery.sqlQuery[0] = "UPDATE Numbers SET number = number + 1 WHERE username = \"" + username + "\""
                 }
+                updateQuery.sqlQuery[1] = "UPDATE inbox SET hasBeenRead = true WHERE hasBeenRead = false AND rowid =" + username.rowId
+
                 updateQuery.topic = "service-a-local-updates"
                 updateQuery.key = "updateNumber"
-                updateQuery.value = req.username
+                updateQuery.value = username
                 transactionalOutboxUpdate@OutboxService( updateQuery )( updateResponse )
                 res = "Choreography Started!"
             }
@@ -97,7 +114,10 @@ service ServiceA{
 
         [finalizeChoreography( req )]{
             connect@Database(config.serviceAConnectionInfo)()
-            query@Database("UPDATE inbox SET hasBeenRead = true WHERE offset = " req)()
+            scope (one) {
+                println@Console("Query: UPDATE inbox SET hasBeenRead = true WHERE kafkaOffset = " + req)()
+                query@Database("UPDATE inbox SET hasBeenRead = true WHERE kafkaOffset = " + req)()
+            }
             //TODO: Again, the above query does not consider that the offset is NULL when message is not recieved from Kafka.
                 //  Again, it doesn't matter in this case, since this operation is only exposed to a local channel
             

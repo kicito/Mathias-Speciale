@@ -3,6 +3,6 @@ type InboxUpdatedResponse {
 }
 
 interface ServiceBInterface {
-    RequestResponse:
-        numbersUpdated( string )( InboxUpdatedResponse )
+    OneWay:
+        numbersUpdated( string )
 }

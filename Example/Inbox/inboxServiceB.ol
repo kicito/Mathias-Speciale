@@ -3,11 +3,12 @@ include "time.iol"
 include "database.iol"
 include "file.iol"
 include "Inbox/inboxTypes.iol"
-include "serviceAInterface.iol"
+include "serviceBInterface.iol"
 
 from runtime import Runtime
 
 service Inbox (p: InboxEmbeddingConfig){
+    execution: concurrent
     // Used for embedding services to talk with the inbox
     inputPort InboxInput {
         Location: "local"
@@ -21,7 +22,7 @@ service Inbox (p: InboxEmbeddingConfig){
         protocol: http{
             format = "json"
         }
-        interfaces: ServiceAInterface
+        interfaces: ServiceBInterface
     }
     embed Runtime as Runtime
 
@@ -34,20 +35,23 @@ service Inbox (p: InboxEmbeddingConfig){
             filepath = "messageRetrieverService.ol"
             params << {
                 localLocation << localLocation
+                configFile = p.configFile
             }
         })( MessageRetriever.location )
 
         readFile@File(
             {
-                filename = "serviceBConfig.json"
+                filename = p.configFile
                 format = "json"
             }) ( config )
 
         scope ( createtable ) 
         {
-            connect@Database( config.serviceAConnectionInfo )()
-            update@Database( "CREATE TABLE IF NOT EXISTS inbox (request VARCHAR (150), hasBeenRead BOOLEAN, kafkaOffset INTEGER, UNIQUE(kafkaOffset));" )( ret )
+            connect@Database( config.serviceBConnectionInfo )()
+            update@Database( "CREATE TABLE IF NOT EXISTS inbox (request VARCHAR (150), hasBeenRead BOOLEAN, kafkaOffset INTEGER, rowid INTEGER PRIMARY KEY AUTOINCREMENT, UNIQUE(kafkaOffset));" )( ret )
         }
+        println@Console( "InboxServiceB Initialized" )(  )
+
     }
 
     main{
@@ -66,16 +70,19 @@ service Inbox (p: InboxEmbeddingConfig){
                     // |———————————————————————————|—————————————|————————|
                     // | 'operation':'parameter(s)'|   'false'   | offset |
                     // |——————————————————————————————————————————————————|
-                update@Database("INSERT INTO inbox VALUES (
+                    
+                println@Console("Key: " + req.key + "\nValue: " + req.value + "\nOffset: " + req.offset)()
+
+                update@Database("INSERT INTO inbox (request, hasBeenRead, kafkaOffset) VALUES (
                     \""+ req.key + ":" + req.value +        // numbersUpdated:user1
                     "\", false, " +                         // false
-                    req.offset)()                           // offset
+                    req.offset + ")")()                      // offset
             }
             res << "Message stored"
         }] 
         {   
             // In the future, we might use Reflection to hit the correct method in the embedder.
-            numbersUpdated@EmbedderInput()
+            numbersUpdated@EmbedderInput( "Nice" )
         }
     }
 }

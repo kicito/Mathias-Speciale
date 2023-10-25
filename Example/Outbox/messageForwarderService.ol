@@ -46,7 +46,7 @@ service MessageForwarderService{
         [startReadingMessages( request )] 
         {
             connect@Database( request.databaseConnectionInfo )( void )  // I very much hate that i have to do this again, and i CANNOT simply keep the connection from above open
-            println@Console( "OutboxMessageForwarder: \tInitialized" )(  )
+            println@Console( "OutboxMessageForwarder Initialized" )(  )
             
             // Keep polling for messages at a given interval.
             while(true) {

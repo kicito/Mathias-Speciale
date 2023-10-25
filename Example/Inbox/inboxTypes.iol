@@ -7,7 +7,7 @@ type KafkaOptions: void {
 }
 
 type RabbitMqOptions {      // Not implemented
-    .bootstrapServers: string
+    .bootstrapServer: string
     .groupId: string
 }
 
@@ -27,6 +27,7 @@ type KafkaMessage {
 type InboxEmbeddingConfig: void {
     localLocation: any
     externalLocation[0,1]: string
+    configFile[0, 1]: string
 }
 
 interface InboxInterface {

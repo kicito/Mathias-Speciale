@@ -5,7 +5,7 @@ from .messageForwarderService import MessageForwarderService
 
 type KafkaOptions: void {   
     .topic: string                              // The topic to write updates to
-    .bootstrapServers: string                   // The URL of the kafka server to connect to, e.g. "localhost:9092"
+    .bootstrapServer: string                   // The URL of the kafka server to connect to, e.g. "localhost:9092"
     .groupId: string                            // The group id of the kafka cluster to send messages to
 }
 
@@ -57,6 +57,10 @@ service Outbox{
     }
     embed MessageForwarderService as RelayService
 
+    init {
+        println@Console("OutboxService initialized")()
+    }
+    
     main {
         [connectRabbitMq( request )]{
             response.status = 500
@@ -101,19 +105,20 @@ service Outbox{
         /*
         *Executes the request.query as well as writing the request.message to the messages table
         */
-        [transactionalOutboxUpdate( request )( response ){
+        [transactionalOutboxUpdate( req )( res ){
             if (global.M_MessageBroker == "Kafka"){
-                install (ConnectionError => {response = "Call to update before connecting"} )
+                install (ConnectionError => response = "Call to update before connecting" )
 
-                updateMessagesTableQuery = "INSERT INTO outbox (kafkaKey, kafkaValue) VALUES (\"" + request.key + "\", \"" + request.value + "\");" 
+                updateMessagesTableQuery = "INSERT INTO outbox (kafkaKey, kafkaValue) VALUES (\"" + req.key + "\", \"" + req.value + "\");" 
                 transactionRequest.statement << request.sqlQuery
+
                 transactionRequest.statement[#transactionRequest.statement] = updateMessagesTableQuery
-                println@Console( "OutboxService: \tInitiating transactional update with queries " )( )
+                println@Console( "OutboxService initiating transactional update with queries " )( )
                 println@Console("\t\t" + transactionRequest.statement[0] + "\n\t\t" + transactionRequest.statement[1] + "\n\t\t" + transactionRequest.statement[2])()
 
                 executeTransaction@Database( transactionRequest )( transactionResponse )
-                response.status = 200
-                response.reason = "Transaction executed sucessfully"
+                res.status = 200
+                res.reason = "Transaction executed sucessfully"
             }
         }]
     }

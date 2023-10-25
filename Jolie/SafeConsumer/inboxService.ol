@@ -15,7 +15,7 @@ service Inbox(p: InboxEmbeddingConfig){
             format = "json"
         }
         Interfaces: 
-            SimpleConumerInterface
+            SimpleConumerInterface  
     }
 
     // Used for embedding services to talk with the inbox
@@ -40,9 +40,11 @@ service Inbox(p: InboxEmbeddingConfig){
     embed Runtime as Runtime
 
     init {
+        // Set the location for communication with the embedder
         ConsumerInput.location << p.localLocation
         ExternalInput.location << p.externalLocation
 
+        //Load the service which is responsible for retriving Kafka messages
         getLocalLocation@Runtime(  )( localLocation )   
         loadEmbeddedService@Runtime({
             filepath = "messageRetriever.ol"
@@ -50,12 +52,10 @@ service Inbox(p: InboxEmbeddingConfig){
                 localLocation << localLocation
             }
         })( MessageRetriever.location )
-        println@Console( "Hey22" )(  )
     }
 
     main {
         [UpdateNumberForUser( req )( res ){
-            println@Console("Hello from InboxService!")()
             connectionInfo << p.connectionInfo 
             scope ( MakeIdempotent ){
                     install( SQLException => {
@@ -67,7 +67,6 @@ service Inbox(p: InboxEmbeddingConfig){
             println@Console( "Inbox: Writing message for " + req.userToUpdate + " to table")()
             connect@Database( connectionInfo )(  )
             }
-
 
             response.code = 200
             response.reason = "Updated number locally"

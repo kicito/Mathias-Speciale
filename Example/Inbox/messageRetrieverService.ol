@@ -20,15 +20,17 @@ service MessageRetriever(p: InboxEmbeddingConfig) {
     init
     {
         InboxPort.location << p.localLocation
+        println@Console( "MessageRetriever Initialized" )(  )
     }
 
     main
     {
         readFile@File(
             {
-                filename = "serviceAConfig.json"
+                filename = p.configFile
                 format = "json"
             }) ( config )
+
 
         with ( inboxSettings ){
             .pollOptions << config.pollOptions;
