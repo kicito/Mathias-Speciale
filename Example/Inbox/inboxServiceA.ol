@@ -92,20 +92,16 @@ service Inbox (p: InboxEmbeddingConfig){
             connect@Database(config.serviceAConnectionInfo)()
             scope( MakeIdempotent ){
                 // If this exception is thrown, Kafka some commit message must have disappeared. Resend it.
-                // install( SQLException => {
-                //     println@Console("Message already recieved, commit request")();
-                //     res = "Message already recieveid, please re-commit"
-                // })
+                install( SQLException => {
+                    println@Console("Message already recieved, commit request")();
+                    res = "Message already recieveid, please re-commit"
+                })
                 // Insert the request into the inbox table in the form:
                     // ___________________________________________________
                     // |            request        | hasBeenRead | offset |
                     // |———————————————————————————|—————————————|————————|
                     // | 'operation':'parameter(s)'|   'false'   | offset |
                     // |——————————————————————————————————————————————————|
-                println@Console("QUERY2: " + "INSERT INTO inbox (request, hasBeenRead, kafkaOffset) VALUES (
-                    \""+ req.key + ":" + req.value +        // numbersUpdated:user1
-                    "\", false, " +                         // false
-                    req.offset + ")" )()
                 update@Database("INSERT INTO inbox (request, hasBeenRead, kafkaOffset) VALUES (
                     \""+ req.key + ":" + req.value +        // numbersUpdated:user1
                     "\", false, " +                         // false
@@ -114,7 +110,6 @@ service Inbox (p: InboxEmbeddingConfig){
             res << "Message stored"
         }] 
         {   
-            //I think this code might get executed before the previous code? Or at least in paralell.
             // In the future, we might use Reflection to hit the correct method in the embedder.
             finalizeChoreography@EmbedderInput(req.offset)
         }

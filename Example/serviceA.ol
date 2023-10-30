@@ -113,16 +113,17 @@ service ServiceA{
         }]
 
         [finalizeChoreography( req )]{
-            connect@Database(config.serviceAConnectionInfo)()
-            scope (one) {
+            scope ( lol ){
+                install( SQLException => println@Console("Error is here!")() )
+                connect@Database( config.serviceAConnectionInfo )()
                 println@Console("Query: UPDATE inbox SET hasBeenRead = true WHERE kafkaOffset = " + req)()
-                query@Database("UPDATE inbox SET hasBeenRead = true WHERE kafkaOffset = " + req)()
+                update@Database("UPDATE inbox SET hasBeenRead = true WHERE kafkaOffset = " + req)()
+                //TODO: Again, the above query does not consider that the offset is NULL when message is not recieved from Kafka.
+                    //  Again, it doesn't matter in this case, since this operation is only exposed to a local channel
+                
+                println@Console("Finished choreography")()
+
             }
-            //TODO: Again, the above query does not consider that the offset is NULL when message is not recieved from Kafka.
-                //  Again, it doesn't matter in this case, since this operation is only exposed to a local channel
-            
-            println@Console("Finished choreography")()
         }
     }
 }
-
