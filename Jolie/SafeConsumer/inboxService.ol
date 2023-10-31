@@ -1,9 +1,10 @@
 include "console.iol"
 include "time.iol"
-include "database.iol"
 include "inboxTypes.iol"
 include "simpleConsumerInterface.iol"
+from .IOBoxController import IOBoxControllerInterface
 
+from database import Database
 from runtime import Runtime
 service Inbox(p: InboxEmbeddingConfig){
     execution: concurrent
@@ -14,8 +15,7 @@ service Inbox(p: InboxEmbeddingConfig){
         protocol: http{
             format = "json"
         }
-        Interfaces: 
-            SimpleConumerInterface  
+        Interfaces: SimpleConsumerInterface  
     }
 
     // Used for embedding services to talk with the inbox
@@ -25,23 +25,33 @@ service Inbox(p: InboxEmbeddingConfig){
             format = "json"
         }
         interfaces: 
-            SimpleConumerInterface,
+            SimpleConsumerInterface,
             InboxInterface
     }
 
     // Used when forwarding messages back to embedder
-    outputPort ConsumerInput {
+    outputPort InboxController {
         location: "local"   // Overwritten in init
         protocol: http{
             format = "json"
         }
-        interfaces: SimpleConumerInterface
+        interfaces: IOBoxControllerInterface
     }
     embed Runtime as Runtime
+    embed Database as Database
 
     init {
+        with ( connectionInfo ) 
+        {
+            .username = "";
+            .password = "";
+            .host = "";
+            .database = "file:database.sqlite"; // "." for memory-only
+            .driver = "sqlite"
+        }
+
         // Set the location for communication with the embedder
-        ConsumerInput.location << p.localLocation
+        InboxController.location << p.localLocation
         ExternalInput.location << p.externalLocation
 
         //Load the service which is responsible for retriving Kafka messages
@@ -51,41 +61,35 @@ service Inbox(p: InboxEmbeddingConfig){
             params << {
                 localLocation << localLocation
             }
-        })( MessageRetriever.location )
+        })( lol )
+
+        connect@Database(connectionInfo)()
+        update@Database("CREATE TABLE IF NOT EXISTS inbox (request VARCHAR (150), hasBeenRead BOOLEAN, kafkaOffset INTEGER, rowid INTEGER PRIMARY KEY AUTOINCREMENT, UNIQUE(kafkaOffset));")()
     }
 
     main {
-        [UpdateNumberForUser( req )( res ){
-            connectionInfo << p.connectionInfo 
-            scope ( MakeIdempotent ){
-                    install( SQLException => {
-                        println@Console("InboxService: \tTrying to insert message into inbox twice!")()
-                        commitRequest.offset = consumeResponse.messages[i].offset
-                        i++
-                    })
+        [updateNumberForUser( req )( res ){
+            update@Database("INSERT INTO inbox (request, hasBeenRead, kafkaOffset) VALUES (\"udateNumber:" + req.userToUpdate + "\", false, NULL)")()
+            res = "Message received"
+        }] 
+        {
+            inboxTableUpdated@InboxController( req.userToUpdate )
+        }
 
-            println@Console( "Inbox: Writing message for " + req.userToUpdate + " to table")()
-            connect@Database( connectionInfo )(  )
-            }
-
-            response.code = 200
-            response.reason = "Updated number locally"
+        [recieveKafka( req )( res ){
+            install( SQLException => {
+                    println@Console("Message already recieved, commit request")();
+                    res = "Message already recieveid, please re-commit"
+            })
+            
+            update@Database("INSERT INTO inbox (request, hasBeenRead, kafkaOffset) VALUES (
+                \""+ req.key + ":" + req.value +        
+                "\", false, " +
+                req.offset + ")")()
+            res = "Message received"
         }]
-
-        [RecieveKafka( req )( res ){
-            with ( connectionInfo ) 
-            {
-                .username = "";
-                .password = "";
-                .host = "";
-                .database = "file:database.sqlite"; // "." for memory-only
-                .driver = "sqlite"
-            }
-
-            println@Console( "Inbox: Writing message for " + req + " to table")()
-            connect@Database( connectionInfo )(  )
-
-            res = "Nice"
-        }]
+        {
+            inboxTableUpdated@InboxController( req.username )
+        }
     }
 }

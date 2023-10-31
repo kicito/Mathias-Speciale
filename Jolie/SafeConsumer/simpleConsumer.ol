@@ -14,21 +14,11 @@ service SimpleConsumer{
         protocol: http{
             format = "json"
         }
-        interfaces: SimpleConumerInterface
+        interfaces: SimpleConsumerInterface
     }
     embed Runtime as Runtime
 
     init {
-        // Load the inbox service
-        getLocalLocation@Runtime(  )( localLocation )
-        loadEmbeddedService@Runtime( { 
-            filepath = "inboxService.ol"
-            params << { 
-                localLocation << localLocation
-                externalLocation << "socket://localhost:8082"
-            }
-        } )( lol )
-
         with ( connectionInfo ) 
         {
             .username = "";
@@ -37,6 +27,16 @@ service SimpleConsumer{
             .database = "file:database.sqlite"; // "." for memory-only
             .driver = "sqlite"
         }
+
+        // Load the inbox service
+        getLocalLocation@Runtime(  )( localLocation )
+        loadEmbeddedService@Runtime( { 
+            filepath = "IOBoxController.ol"
+            params << { 
+                localLocation << localLocation
+                externalLocation << "socket://localhost:8082"
+            }
+        } )( lol )
 
         connect@Database( connectionInfo )( void )
 
@@ -51,10 +51,11 @@ service SimpleConsumer{
     }
 
     main {
-        [UpdateNumberForUser( request )( response ){
+        [updateNumberForUser( request )( response ){
             println@Console( "SimpleConsumer: Handling request for username " + request.userToUpdate )()
-            // transactionalOutboxUpdate@OutboxService(Update table for user, 'Confirmed, i did it!')()
-            response.code = 200
+            update@Database( "UPDATE table SET number = number + 1 WHERE username = \"" + request.userToUpdate + "\"" )()
+            
+            
             response.reason = "Updated number locally"
         }]
     }

@@ -51,12 +51,11 @@ service MessageRetriever(p: InboxEmbeddingConfig) {
 
             for ( i = 0, i < #consumeResponse.messages, i++ ) {
                 println@Console( "InboxService: Retrieved message: " + consumeResponse.messages[i].value + " at offset " + consumeResponse.messages[i].offset)( )
-                //updateNumberRequest.userToUpdate = consumeResponse.messages[i].key
-                RecieveKafka@InboxPort( "New Message Recievied" )( simpleconsumerResponse )
-                if ( simpleconsumerResponse == "Nice" ){
-                    commitRequest.offset = consumeResponse.messages[i].offset
-                    Commit@KafkaConsumer( commitRequest )( commitResponse )
-                }
+                updateNumberRequest.userToUpdate = consumeResponse.messages[i].key
+                recieveKafka@InboxPort( "New Message Recievied" )( simpleconsumerResponse )
+                
+                commitRequest.offset = consumeResponse.messages[i].offset
+                Commit@KafkaConsumer( commitRequest )( commitResponse )
             }
             sleep@Time( 1000 )(  )
         }
