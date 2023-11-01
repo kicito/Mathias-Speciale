@@ -50,18 +50,15 @@ service ServiceA{
     main {
         [ updateNumber( request )( response )
         {
-            scope ( InsertData )    //Update the number in the database
-            {   
-                // install ( SQLException => println@Console( "SQL exception while trying to insert data" )( ) )
-                updateQuery = "UPDATE Numbers SET number = number + 1 WHERE username = \"" + request.username + "\""
-                update@Database( updateQuery )( updateResponse )
-                println@Console( "Update response: " + updateResponse )(  )
-            }
-            // sleep@Time( 10000 )(  )      //Sleep time is in ms
-            // If service crashes here, then the databases of the producer and consumer are inconsistant
-            if ( updateResponse == 1)   // The update succedded
+            updateQuery = "UPDATE Numbers SET number = number + 1 WHERE username = \"" + request.username + "\""
+            // 1: Service A updates its local state
+            update@Database( updateQuery )( updateResponse )
+
+            /***** If service crashes here, then the databases of the producer and consumer are inconsistant *****/
+            
+            if ( updateResponse == 1)
             {
-                println@Console( "Forwarding message with username: " + request.username )()
+                // 3: Propagate the updated username into Kafka
                 propagateMessage@KafkaRelayer( request.username )
                 response = "Update succeded!"
             }
