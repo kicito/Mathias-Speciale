@@ -42,7 +42,7 @@ service SimpleProducer{
         {
             install ( SQLException => println@Console("Table already exists")() );
             updateRequest =
-                "CREATE TABLE Numbers(username VARCHAR(50) NOT NULL, " +
+                "CREATE TABLE IF NOT EXISTS Numbers(username VARCHAR(50) NOT NULL, " +
                 "number int)";
             update@Database( updateRequest )( ret )
         }
@@ -63,7 +63,7 @@ service SimpleProducer{
             if ( updateResponse == 1)   // The update succedded
             {
                 println@Console( "Forwarding message with username: " + request.username )()
-                updateCountForUsername@KafkaRelayer( request.username )
+                propagateMessage@KafkaRelayer( request.username )
                 response = "Update succeded!"
             }
             else 

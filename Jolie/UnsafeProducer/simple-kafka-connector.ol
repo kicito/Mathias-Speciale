@@ -1,5 +1,5 @@
 interface  SimpleKafkaConnectorInterface {
-    OneWay: updateCountForUsername ( string )
+    OneWay: propagateMessage ( string )
 }
 
 service SimpleKafkaConnector{

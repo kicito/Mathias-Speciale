@@ -9,7 +9,6 @@ from .simple-kafka-connector import KafkaConsumer
 interface MessageRetrieverInterface{
 
 }
-
 service MessageRetriever(p: InboxEmbeddingConfig) {
     outputPort InboxPort {
         location: "local"

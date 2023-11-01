@@ -23,7 +23,7 @@ service SimpleConsumer{
         {
             .username = "";
             .password = "";
-            .host = "";
+            .host = "";git
             .database = "file:database.sqlite"; // "." for memory-only
             .driver = "sqlite"
         }
