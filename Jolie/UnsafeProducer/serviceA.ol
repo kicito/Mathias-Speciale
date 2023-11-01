@@ -9,25 +9,24 @@ type UpdateNumberRequest {
 
 type UpdateNumberResponse: string
 
-interface SimpleProducerInterface{
+interface ServiceAInterface{
     RequestResponse:
         updateNumber( UpdateNumberRequest )( UpdateNumberResponse )
 }
 
-service SimpleProducer{
+service ServiceA{
     execution: concurrent
-    inputPort SimpleProducer {
+    inputPort ServiceAExternal {
         location: "socket://localhost:8080" 
         protocol: http{
             format = "json"
         }
-        interfaces: SimpleProducerInterface
+        interfaces: ServiceAInterface
     }
     embed SimpleKafkaConnector as KafkaRelayer
 
     init
     {
-        TABLENAME = "Numbers"
         with ( connectionInfo ) 
         {
             .username = "";
@@ -53,8 +52,8 @@ service SimpleProducer{
         {
             scope ( InsertData )    //Update the number in the database
             {   
-                install ( SQLException => println@Console( "SQL exception while trying to insert data" )( ) )
-                updateQuery = "UPDATE " + TABLENAME + " SET number = number + 1 WHERE username = \"" + request.username + "\""
+                // install ( SQLException => println@Console( "SQL exception while trying to insert data" )( ) )
+                updateQuery = "UPDATE Numbers SET number = number + 1 WHERE username = \"" + request.username + "\""
                 update@Database( updateQuery )( updateResponse )
                 println@Console( "Update response: " + updateResponse )(  )
             }
