@@ -10,19 +10,19 @@ type UpdateNumberRequest {
 
 type UpdateNumberResponse: string
 
-interface SimpleProducerInterface{
+interface ServiceAInterface{
     RequestResponse:
         updateNumber( UpdateNumberRequest )( UpdateNumberResponse )
 }
 
-service SimpleProducer{
+service ServiceA{
     execution: concurrent
-    inputPort SimpleProducer {
+    inputPort ServiceA {
         location: "socket://localhost:8080" 
         protocol: http{
             format = "json"
         }
-        interfaces: SimpleProducerInterface
+        interfaces: ServiceAInterface
     }
     embed Outbox as OutboxService
 
@@ -77,7 +77,7 @@ service SimpleProducer{
             {   
                 install ( SQLException => println@Console( "SQL exception while trying to insert data" )( ) )
                 updateQuery.sqlQuery = "UPDATE Numbers SET number = number + 1 WHERE username = \"" + request.username + "\""
-                updateQuery.topic = "local-demo"
+                updateQuery.topic = "example"
                 updateQuery.key = request.username
                 updateQuery.value = "Updated number for " + request.username
                 transactionalOutboxUpdate@OutboxService( updateQuery )( updateResponse )

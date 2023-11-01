@@ -24,13 +24,6 @@ type InitializeConsumerRequest{
     .brokerOptions: KafkaOptions
 }
 
-type KafkaMessage {
-    .offset: long
-    .key: string
-    .value: string
-    .topic: string
-}
-
 interface InboxInterface {
-    RequestResponse: recieveKafka( KafkaMessage )( string )
+    RequestResponse: recieveKafka( string )( string )
 }

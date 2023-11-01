@@ -45,7 +45,7 @@ interface OutboxInterface{
 
 /**
 * This service is used to implement the outbox pattern. Given an SQL query and some message, it will atomically execute the query, as well write the message to a messages table.
-* It will then embeds a 'RelayService', which reads from the 'Messages' table and forwards messages into Kafka.
+* It will then embeds a 'MessageForwarderService', which reads from the 'Messages' table and forwards messages into Kafka.
 */
 service Outbox{
     execution: sequential
@@ -53,7 +53,7 @@ service Outbox{
         Location: "local"
         Interfaces: OutboxInterface
     }
-    embed MessageForwarderService as RelayService
+    embed MessageForwarderService as MessageForwarderService
 
     main {
         [connectRabbitMq( request )( response ){
@@ -63,9 +63,6 @@ service Outbox{
             global.M_MessageBroker = "RabbitMq"
         }]
 
-        /*
-        * Connect to a Kafka version of this service.
-        */
         [connectKafka( request ) ( response ){
             connect@Database( request.databaseConnectionInfo )( void )
             scope ( createMessagesTable )
@@ -89,15 +86,11 @@ service Outbox{
             relayRequest.columnSettings.idColumn = "mid"
             relayRequest.brokerOptions << request.brokerOptions
             
-            startReadingMessages@RelayService( relayRequest )( relayResponse )
+            startReadingMessages@MessageForwarderService( relayRequest )( relayResponse )
             response << relayResponse
             global.M_MessageBroker = "Kafka"
         }]
 
-
-        /*
-        *Executes the request.query as well as writing the request.message to the messages table
-        */
         [transactionalOutboxUpdate( request )( response ){
             if (global.M_MessageBroker == "Kafka"){
                 println@Console( "Initiating transactional update" )(  )

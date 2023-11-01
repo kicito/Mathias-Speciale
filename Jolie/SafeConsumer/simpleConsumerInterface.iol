@@ -1,9 +1,13 @@
 type UpdateDatabaseRequest{
     .userToUpdate: string
-    .sid[0, 1]: string
 }
 
-interface SimpleConsumerInterface{
+type UpdateDatabaseResponse {
+    .code: int
+    .reason: string
+}
+
+interface SimpleConumerInterface{
     RequestResponse:
-        updateNumberForUser( UpdateDatabaseRequest )( string )
+        updateNumberForUser( UpdateDatabaseRequest )( UpdateDatabaseResponse )
 }

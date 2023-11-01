@@ -1,95 +1,81 @@
 include "console.iol"
 include "time.iol"
-include "inboxTypes.iol"
+include "database.iol"
+include "file.iol"
+include "Inbox/inboxTypes.iol"
 include "simpleConsumerInterface.iol"
-from .IOBoxController import IOBoxControllerInterface
 
-from database import Database
 from runtime import Runtime
-service Inbox(p: InboxEmbeddingConfig){
+
+service Inbox (p: InboxEmbeddingConfig){
     execution: concurrent
-
-    // This service takes over handling of the external endpoint from the embedder
-    inputPort ExternalInput {
-        location: "socket://localhost:8082"     //It would be nice if this could be sent with as a parameter
-        protocol: http{
-            format = "json"
-        }
-        Interfaces: SimpleConsumerInterface  
-    }
-
     // Used for embedding services to talk with the inbox
     inputPort InboxInput {
-        location: "local"
-        protocol: http{
-            format = "json"
-        }
-        interfaces: 
-            SimpleConsumerInterface,
+        Location: "local"
+        Interfaces: 
             InboxInterface
     }
 
     // Used when forwarding messages back to embedder
-    outputPort InboxController {
+    outputPort EmbedderInput {
         location: "local"   // Overwritten in init
         protocol: http{
             format = "json"
         }
-        interfaces: IOBoxControllerInterface
+        interfaces: ServiceBInterface
     }
     embed Runtime as Runtime
-    embed Database as Database
 
-    init {
-        with ( connectionInfo ) 
-        {
-            .username = "";
-            .password = "";
-            .host = "";
-            .database = "file:database.sqlite"; // "." for memory-only
-            .driver = "sqlite"
-        }
+    init
+    {
+        EmbedderInput.location = p.localLocation
 
-        // Set the location for communication with the embedder
-        InboxController.location << p.localLocation
-        ExternalInput.location << p.externalLocation
-
-        //Load the service which is responsible for retriving Kafka messages
         getLocalLocation@Runtime(  )( localLocation )   
         loadEmbeddedService@Runtime({
-            filepath = "messageRetriever.ol"
+            filepath = "messageRetrieverService.ol"
             params << {
                 localLocation << localLocation
             }
-        })( lol )
+        })( MessageRetriever.location )
 
-        connect@Database(connectionInfo)()
-        update@Database("CREATE TABLE IF NOT EXISTS inbox (request VARCHAR (150), hasBeenRead BOOLEAN, kafkaOffset INTEGER, rowid INTEGER PRIMARY KEY AUTOINCREMENT, UNIQUE(kafkaOffset));")()
+        scope ( createtable ) 
+        {
+            connect@Database( config.serviceBConnectionInfo )()
+            update@Database( "CREATE TABLE IF NOT EXISTS inbox (request VARCHAR (150), hasBeenRead BOOLEAN, kafkaOffset INTEGER, rowid INTEGER PRIMARY KEY AUTOINCREMENT, UNIQUE(kafkaOffset));" )( ret )
+        }
+        println@Console( "InboxServiceB Initialized" )(  )
+
     }
 
-    main {
-        [updateNumberForUser( req )( res ){
-            update@Database("INSERT INTO inbox (request, hasBeenRead, kafkaOffset) VALUES (\"udateNumber:" + req.userToUpdate + "\", false, NULL)")()
-            res = "Message received"
-        }] 
-        {
-            inboxTableUpdated@InboxController( req.userToUpdate )
-        }
-
-        [recieveKafka( req )( res ){
-            install( SQLException => {
+    main{
+        [recieveKafka( req )( res ) {
+            // Kafka messages for our inbox/outbox contains the operation invoked in the 'key', and the parameters in the 'value'
+            connect@Database(config.serviceBConnectionInfo)()
+            scope( MakeIdempotent ){
+                // If this exception is thrown, Kafka some commit message must have disappeared. Resend it.
+                install( SQLException => {
                     println@Console("Message already recieved, commit request")();
                     res = "Message already recieveid, please re-commit"
-            })
-            
-            update@Database("INSERT INTO inbox (request, hasBeenRead, kafkaOffset) VALUES (
-                \""+ req.key + ":" + req.value +        
-                "\", false, " +
-                req.offset + ")")()
-            res = "Message received"
-        }]
-        {
-            inboxTableUpdated@InboxController( req.username )
+                })
+                // Insert the request into the inbox table in the form:
+                    // ___________________________________________________
+                    // |            request        | hasBeenRead | offset |
+                    // |———————————————————————————|—————————————|————————|
+                    // | 'operation':'parameter(s)'|   'false'   | offset |
+                    // |——————————————————————————————————————————————————|
+                    
+                println@Console("Key: " + req.key + "\nValue: " + req.value + "\nOffset: " + req.offset)()
+
+                update@Database("INSERT INTO inbox (request, hasBeenRead, kafkaOffset) VALUES (
+                    \""+ req.key + ":" + req.value +        // numbersUpdated:user1
+                    "\", false, " +                         // false
+                    req.offset + ")")()                      // offset
+            }
+            res << "Message stored"
+        }] 
+        {   
+            // In the future, we might use Reflection to hit the correct method in the embedder.
+            UpdateNumberForUser@EmbedderInput( "Nice" )
         }
     }
 }

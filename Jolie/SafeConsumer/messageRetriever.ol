@@ -4,7 +4,7 @@ include "database.iol"
 include "inboxTypes.iol"
 include "simpleConsumerInterface.iol"
 
-from .simple-kafka-connector import KafkaConsumer
+from .simple-kafka-connector import SimpleKafkaConsumerConnector
 
 interface MessageRetrieverInterface{
 
@@ -17,7 +17,7 @@ service MessageRetriever(p: InboxEmbeddingConfig) {
         }
         interfaces: InboxInterface            
     }
-    embed KafkaConsumer as KafkaConsumer
+    embed SimpleKafkaConsumerConnector as KafkaConsumerConnector
 
     main
     {
@@ -33,7 +33,7 @@ service MessageRetriever(p: InboxEmbeddingConfig) {
         {
             .bootstrapServer =  "localhost:9092";
             .groupId = "test-group";
-            .topic = "local-demo"
+            .topic = "example"
         };
 
         // Initialize Inbox Service
@@ -42,10 +42,10 @@ service MessageRetriever(p: InboxEmbeddingConfig) {
             .brokerOptions << kafkaOptions
         }
 
-        Initialize@KafkaConsumer( inboxSettings )( initializedResponse )
+        Initialize@KafkaConsumerConnector( inboxSettings )( initializedResponse )
         consumeRequest.timeoutMs = 3000
         while (true) {
-            Consume@KafkaConsumer( consumeRequest )( consumeResponse )
+            Consume@KafkaConsumerConnector( consumeRequest )( consumeResponse )
             println@Console( "InboxService: Received " + #consumeResponse.messages + " messages from KafkaConsumerService" )(  )
 
             for ( i = 0, i < #consumeResponse.messages, i++ ) {

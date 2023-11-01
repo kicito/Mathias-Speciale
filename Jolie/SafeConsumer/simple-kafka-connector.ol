@@ -31,7 +31,7 @@ interface SimpleKafkaConsumerInterface {
         Commit( CommitRequest )( CommitResponse ) 
 }
 
-service KafkaConsumer{
+service SimpleKafkaConsumerConnector{
     inputPort Input {
         Location: "local"
         Interfaces: SimpleKafkaConsumerInterface
