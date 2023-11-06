@@ -62,6 +62,8 @@ service MessageForwarderService{
                         kafkaMessage.brokerOptions << request.brokerOptions
 
                         propagateMessage@KafkaInserter( kafkaMessage )( kafkaResponse )
+
+                        println@Console( "Response status: " + kafkaResponse.status )(  )
                         if (kafkaResponse.status == 200) {
                             deleteQuery = "DELETE FROM outbox WHERE  mid = " + databaseMessage.mid
                             println@Console( "OutboxMessageForwarder: \tExecuting query '" + deleteQuery + "'")(  )

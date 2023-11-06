@@ -98,7 +98,7 @@ service ServiceB{
                     updateQuery.sqlQuery[0] = localUpdateQuery
                     updateQuery.sqlQuery[1] = inboxDeleteQuery
                 
-                    updateQuery.topic = "service-b-local-updates"
+                    updateQuery.topic = config.kafkaOutboxOptions.topic
                     updateQuery.key = "numbersUpdated"
                     updateQuery.value = username
                     transactionalOutboxUpdate@OutboxService( updateQuery )( updateResponse )

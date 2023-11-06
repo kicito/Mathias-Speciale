@@ -74,7 +74,7 @@ service Outbox{
                     })
 
                 // Varchar size is not enforced by sqlite, we can insert a string of any length
-                updateRequest = "CREATE TABLE IF NOT EXISTS messages (kafkaKey VARCHAR(50), kafkaValue VARCHAR (150), mid INTEGER PRIMARY KEY AUTOINCREMENT);"
+                updateRequest = "CREATE TABLE IF NOT EXISTS outbox (kafkaKey VARCHAR(50), kafkaValue VARCHAR (150), mid INTEGER PRIMARY KEY AUTOINCREMENT);"
                 update@Database( updateRequest )( ret )
             }
 
@@ -96,7 +96,7 @@ service Outbox{
                 println@Console( "Initiating transactional update" )(  )
                 install (ConnectionError => {response = "Call to update before connecting"} )
 
-                updateMessagesTableQuery = "INSERT INTO messages (kafkaKey, kafkaValue) VALUES (\"" + request.key + "\", \"" + request.value + "\");" 
+                updateMessagesTableQuery = "INSERT INTO outbox (kafkaKey, kafkaValue) VALUES (\"" + request.key + "\", \"" + request.value + "\");" 
                 transactionRequest.statement[0] = updateMessagesTableQuery
                 transactionRequest.statement[1] = request.sqlQuery
 

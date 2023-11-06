@@ -2,8 +2,8 @@ include "console.iol"
 include "time.iol"
 include "database.iol"
 include "file.iol"
-include "Inbox/inboxTypes.iol"
-include "simpleConsumerInterface.iol"
+include "inboxTypes.iol"
+include "serviceBInterface.iol"
 
 from runtime import Runtime
 
@@ -38,10 +38,18 @@ service Inbox (p: InboxEmbeddingConfig){
             }
         })( MessageRetriever.location )
 
+        with ( connectionInfo ) 
+        {
+            .username = "";
+            .password = "";
+            .host = "";
+            .database = "file:database.sqlite"; // "." for memory-only
+            .driver = "sqlite"
+        }
         scope ( createtable ) 
         {
-            connect@Database( config.serviceBConnectionInfo )()
-            update@Database( "CREATE TABLE IF NOT EXISTS inbox (request VARCHAR (150), hasBeenRead BOOLEAN, kafkaOffset INTEGER, rowid INTEGER PRIMARY KEY AUTOINCREMENT, UNIQUE(kafkaOffset));" )( ret )
+            connect@Database( connectionInfo )()
+            update@Database( "CREATE TABLE IF NOT EXISTS inbox (username VARCHAR (150), hasBeenRead BOOLEAN, kafkaOffset INTEGER, rowid INTEGER PRIMARY KEY AUTOINCREMENT, UNIQUE(kafkaOffset));" )( ret )
         }
         println@Console( "InboxServiceB Initialized" )(  )
 
@@ -49,8 +57,7 @@ service Inbox (p: InboxEmbeddingConfig){
 
     main{
         [recieveKafka( req )( res ) {
-            // Kafka messages for our inbox/outbox contains the operation invoked in the 'key', and the parameters in the 'value'
-            connect@Database(config.serviceBConnectionInfo)()
+            // Kafka messages for our inbox/outbox contains the username in the 'key', and the parameters in the 'value'
             scope( MakeIdempotent ){
                 // If this exception is thrown, Kafka some commit message must have disappeared. Resend it.
                 install( SQLException => {
@@ -71,11 +78,12 @@ service Inbox (p: InboxEmbeddingConfig){
                     "\", false, " +                         // false
                     req.offset + ")")()                      // offset
             }
-            res << "Message stored"
+            res = "Message stored"
         }] 
         {   
             // In the future, we might use Reflection to hit the correct method in the embedder.
-            UpdateNumberForUser@EmbedderInput( "Nice" )
+            updateUserRequest.userToUpdate = req.key
+            updateNumberForUser@EmbedderInput( updateUserRequest )()
         }
     }
 }

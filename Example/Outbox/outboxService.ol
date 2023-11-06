@@ -110,12 +110,13 @@ service Outbox{
                 install (ConnectionError => response = "Call to update before connecting" )
 
                 updateMessagesTableQuery = "INSERT INTO outbox (kafkaKey, kafkaValue) VALUES (\"" + req.key + "\", \"" + req.value + "\");" 
-                transactionRequest.statement << request.sqlQuery
+                transactionRequest.statement << req.sqlQuery
 
                 transactionRequest.statement[#transactionRequest.statement] = updateMessagesTableQuery
                 println@Console( "OutboxService initiating transactional update with queries " )( )
-                println@Console("\t\t" + transactionRequest.statement[0] + "\n\t\t" + transactionRequest.statement[1] + "\n\t\t" + transactionRequest.statement[2])()
-
+                println@Console("1: \t\t" + transactionRequest.statement[0])()
+                println@Console("2: \t\t" + transactionRequest.statement[1])()
+                println@Console("3: \t\t" + transactionRequest.statement[2])()
                 executeTransaction@Database( transactionRequest )( transactionResponse )
                 res.status = 200
                 res.reason = "Transaction executed sucessfully"

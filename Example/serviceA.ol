@@ -91,8 +91,7 @@ service ServiceA{
 
             scope ( InsertData )    //Update the number in the database
             {   
-                install( SQLException => println@Console("HERE1")() )
-                //install ( SQLException => println@Console( "SQL exception while trying to insert data" )( ) )
+                install ( SQLException => println@Console( "SQL exception occured in Service A while inserting data" )( ) )
 
                 connect@Database(config.serviceAConnectionInfo)()
                 query@Database("SELECT * FROM Numbers WHERE username = \"" + username + "\"")( userExists )
@@ -104,7 +103,9 @@ service ServiceA{
                 }
                 updateQuery.sqlQuery[1] = "UPDATE inbox SET hasBeenRead = true WHERE hasBeenRead = false AND rowid =" + username.rowId
 
-                updateQuery.topic = "service-a-local-updates"
+                println@Console("\n Query: " + updateQuery.sqlQuery[1] + "\n")()
+
+                updateQuery.topic = config.kafkaOutboxOptions.topic
                 updateQuery.key = "updateNumber"
                 updateQuery.value = username
                 transactionalOutboxUpdate@OutboxService( updateQuery )( updateResponse )

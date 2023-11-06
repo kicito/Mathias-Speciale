@@ -13,11 +13,11 @@
   "kafkaInboxOptions": {
     "bootstrapServer": "localhost:9092",
     "groupId": "service-a-inbox",
-    "topic": "service-b-local-updates"
+    "topic": "b-out"
   },
   "kafkaOutboxOptions": {
     "bootstrapServer": "localhost:9092",
     "groupId": "service-a-outbox",
-    "topic": "service-a-local-updates"
+    "topic": "a-out"
   }
 }

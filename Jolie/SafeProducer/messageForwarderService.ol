@@ -40,16 +40,22 @@ service MessageForwarderService{
     }
     embed SimpleKafkaConnector as KafkaRelayer
 
+    init {
+        with ( connectionInfo ) 
+        {
+            .username = "";
+            .password = "";
+            .host = "";
+            .database = "file:database.sqlite"; // "." for memory-only
+            .driver = "sqlite"
+        }
+    }
+
     /** Starts this service reading continually from the 'Messages' table */
     main{
         [startReadingMessages( request )( response ) 
         {
             scope (ConnectToDatabase){      // Everything in this scope is simply to check that a connection to the database CAN be opened.
-                install (ConnectionError => 
-                {
-                    response.status = 500
-                    response.reason = "MessageForwarderService could not connect to the database"
-                })
                 global.M_KafkaOptions << request.brokerOptions
                 response.status = 200
                 response.reason = "MessageForwarderService initialized sucessfully"
@@ -58,22 +64,21 @@ service MessageForwarderService{
 
         }] 
         {
-            connect@Database( request.databaseConnectionInfo )( void )  // I very much hate that i have to do this again, and i CANNOT simply keep the connection from above open
-            
             // Keep polling for messages at a given interval.
             while(true) {
-                query = "SELECT * FROM messages LIMIT " + request.pollSettings.pollAmount
+                connect@Database( connectionInfo )( void )      //I hate that i cannot keep the connection open from above, but likely scoping issue
+                query = "SELECT * FROM outbox LIMIT " + request.pollSettings.pollAmount
                 query@Database(query)( pulledMessages )
                 println@Console( "Query '" + query + "' returned " + #pulledMessages.row + " rows " )(  )
                 if (#pulledMessages.row > 0){
                     for ( databaseMessage in pulledMessages.row ){
-                        kafkaMessage.topic = "local-demo"
+                        kafkaMessage.topic = "example"
                         kafkaMessage.key = databaseMessage.(request.columnSettings.keyColumn)
                         kafkaMessage.value = databaseMessage.(request.columnSettings.valueColumn)
                         kafkaMessage.brokerOptions << global.M_KafkaOptions
                         propagateMessage@KafkaRelayer( kafkaMessage )( kafkaResponse )
                         if (kafkaResponse.status == 200) {
-                            update@Database( "DELETE FROM messages WHERE " + ( request.columnSettings.idColumn ) + " = " + databaseMessage.(request.columnSettings.idColumn) )( updateResponse )
+                            update@Database( "DELETE FROM outbox WHERE " + ( request.columnSettings.idColumn ) + " = " + databaseMessage.(request.columnSettings.idColumn) )( updateResponse )
                         }
                     }
                 }
