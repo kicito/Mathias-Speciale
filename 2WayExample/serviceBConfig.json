@@ -1,8 +1,8 @@
 {
   "serviceBConnectionInfo": {
-    "password": "",
+    "password": "example",
     "database": "file:serviceBDb.sqlite",
-    "driver": "sqlite",
+    "driver": "postgresql",
     "host": "",
     "username": ""
   },
@@ -11,12 +11,12 @@
     "pollAmount": 3
   },
   "kafkaInboxOptions": {
-    "bootstrapServer": "localhost:9092",
+    "bootstrapServer": "localhost:29092",
     "groupId": "service-b-inbox",
     "topic": "a-out"
   },
   "kafkaOutboxOptions": {
-    "bootstrapServer": "localhost:9092",
+    "bootstrapServer": "localhost:29092",
     "groupId": "service-b-outbox",
     "topic": "b-out"
   }

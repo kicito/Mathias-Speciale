@@ -1,5 +1,6 @@
 from .transactionService import TransactionService
 include "console.iol"
+include "database.iol"
 
 type SayHelloRequest{
     .username: string
@@ -20,6 +21,20 @@ service TestService{
     }
     embed TransactionService as TransactionService
     
+    init {
+        // connect to DB
+        with ( connectionInfo ) {
+            .username = "postgres";
+            .password = "example";
+            .host = "";
+            .database = "example-db"; // "." for memory-only
+            .driver = "postgresql"
+        }
+
+        connect@Database(connectionInfo)()
+        update@Database("CREATE TABLE IF NOT EXISTS Numbers(username VARCHAR(50) NOT NULL, number int)")()
+        close@Database( )(  )
+    }
     main
     {
         [sayHello( request )( response ){

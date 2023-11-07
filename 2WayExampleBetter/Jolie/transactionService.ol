@@ -1,14 +1,24 @@
-type SayHelloRequest{
-    .username: string
+from database import ConnectionInfo
+
+type TransactionId: string
+type TransactionResult: string
+
+type ConnectRequest: ConnectionInfo
+type ConnectResponse: string
+
+type ExecuteQueryRequest{
+    .tId: TransactionId
+    .query: string
 }
 
-type SayHelloResponse {
-    .response: string
-}
+type QueryResult: any   //TODO: Figure out how to return the result of a query
 
 interface TransactionServiceInterface {
     RequestResponse: 
-        sayHello( SayHelloRequest ) ( SayHelloResponse ),
+        connect( ConnectRequest ) ( ConnectResponse ),
+        startTransaction( void )( TransactionId ),
+        executeQueryInTransaction( ExecuteQueryRequest )( QueryResult ),
+        commitChanges( TransactionId )( TransactionResult )
 }
 
 service TransactionService{
