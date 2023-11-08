@@ -1,9 +1,12 @@
 package jolie.transactionservice;
 
+import java.math.BigDecimal;
+import java.sql.Clob;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Optional;
@@ -11,12 +14,14 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import jolie.runtime.ByteArray;
 import jolie.runtime.CanUseJars;
 import jolie.runtime.FaultException;
 
 //  Jolie imports
 import jolie.runtime.JavaService;
 import jolie.runtime.Value;
+import jolie.runtime.ValueVector;
 
 /**
  * Represents a class which can connect to a single database, but then open
@@ -76,58 +81,60 @@ public class TransactionService extends JavaService {
                         .ofNullable(
                                 request.hasChildren("encoding") ? request.getFirstChild("encoding").strValue() : null);
 
-                try {
-                    if (m_driverClass != null) {
-                        Class.forName(m_driverClass);
-                    } else {
-                        // This should not be a switch statement in this case, since we only have a
-                        // single allowed value
-                        // but then again, in the original it's 11 else-if statements, so that probably
-                        // should have been a switch
-                        // Also, as far as I can see, this is only here to throw an exception if the
-                        // correct driver is not in the 'lib' folder
-                        switch (m_driver) {
-                            case "postgresql":
-                                Class.forName("org.postgresql.Driver");
-                                break;
-                            case "sqlite":
-                                Class.forName("org.sqlite.JDBC");
-                                isEmbedded = true;
-                                break;
-                            default:
-                                throw new FaultException("InvalidDriver", "Unknown type of driver: " + m_driver);
-                        }
-                    }
+                // try {
+                // if (m_driverClass != null) {
+                // Class.forName(m_driverClass);
+                // } else {
+                // // This should not be a switch statement in this case, since we only have a
+                // // single allowed value
+                // // but then again, in the original it's 11 else-if statements, so that
+                // probably
+                // // should have been a switch
+                // // This part might not even be needed. Will test without.
+                // switch (m_driver) {
+                // case "postgresql":
+                // Class.forName("org.postgresql.Driver");
+                // break;
+                // case "sqlite":
+                // Class.forName("org.sqlite.JDBC");
+                // isEmbedded = true;
+                // break;
+                // default:
+                // throw new FaultException("InvalidDriver", "Unknown type of driver: " +
+                // m_driver);
+                // }
+                // }
 
-                    if (isEmbedded) // Driver is SQLITE
-                    {
-                        m_connectionString = "jdbc:" + m_driver + ":" + databaseName;
-                        if (!attributes.isEmpty()) {
-                            m_connectionString += ";" + attributes;
-                        }
-                    } else // Driver is postgres
-                    {
-                        m_connectionString = "jdbc:" + m_driver + "://" + host + (port.isEmpty() ? "" : ":" + port)
-                                + separator + databaseName;
-                        if (encoding.isPresent()) {
-                            m_connectionString += "?characterEncoding=" + encoding.get();
-                        }
+                if (isEmbedded) // Driver is SQLITE
+                {
+                    m_connectionString = "jdbc:" + m_driver + ":" + databaseName;
+                    if (!attributes.isEmpty()) {
+                        m_connectionString += ";" + attributes;
                     }
-                } catch (ClassNotFoundException e) {
-                    throw new FaultException("DriverClassNotFound", e);
+                } else // Driver is postgres
+                {
+                    m_connectionString = "jdbc:" + m_driver + "://" + host + (port.isEmpty() ? "" : ":" + port)
+                            + separator + databaseName;
+                    if (encoding.isPresent()) {
+                        m_connectionString += "?characterEncoding=" + encoding.get();
+                    }
                 }
+                // } catch (ClassNotFoundException e) {
+                // throw new FaultException("DriverClassNotFound", e);
+                // }
             }
         }
+
     }
 
-    public String startTransaction(Value request) throws FaultException {
+    public String initiate(Value request) throws FaultException {
         Connection con;
         try {
             con = DriverManager.getConnection(
                     m_connectionString,
                     m_username,
                     m_password);
-            con.setAutoCommit(false);
+            con.setAutoCommit(false); // This line is where the magic lies
             String uuid = UUID.randomUUID().toString();
             synchronized (m_transactionMutex) {
                 openTransactions.put(uuid, con);
@@ -138,36 +145,129 @@ public class TransactionService extends JavaService {
         }
     }
 
-    public Value executeQueryInTransaction(Value input) {
-        String transactionId = input.getFirstChild("handle").strValue();
+    public Value executeQuery(Value input) throws FaultException {
+        String transactionHandle = input.getFirstChild("handle").strValue();
         String query = input.getFirstChild("query").strValue();
 
         Value response = Value.create();
 
         try {
-            Connection con = openTransactions.get(transactionId);
+            Connection con = openTransactions.get(transactionHandle);
             PreparedStatement statement = con.prepareStatement(query);
-            ResultSet rs = statement.executeQuery();
+            ResultSet result = statement.executeQuery();
 
+            resultSetToValueVector(result, response.getChildren("row"));
             // Return changes, which I hope can be found from the RS
             return response;
         } catch (SQLException e) {
-            return response;
-            // return error
+            throw new FaultException("SQLException", e);
         }
     }
 
-    public Value commitTransaction(String tId) {
+    public Value executeUpdate(Value input) throws FaultException {
+        String transactionHandle = input.getFirstChild("handle").strValue();
+        String query = input.getFirstChild("update").strValue();
+        Value response = Value.create();
+        try {
+            Connection con = openTransactions.get(transactionHandle);
+            PreparedStatement statement = con.prepareStatement(query);
+            int numberRowsUpdated = statement.executeUpdate();
+
+            response.setValue(numberRowsUpdated);
+            return response;
+        } catch (SQLException e) {
+            throw new FaultException("SQLException", e);
+        }
+    }
+
+    public Value commit(String transactionHandle) throws FaultException {
         Value response = Value.create();
 
         try {
-            Connection con = openTransactions.get(tId);
+            Connection con = openTransactions.get(transactionHandle);
             con.commit();
-            // Return success
+            response.setValue("Transaction " + transactionHandle + " was commited sucessfully.");
             return response;
         } catch (SQLException e) {
-            // return error
-            return response;
+            throw new FaultException("SQLException", e);
         }
     }
+
+    // *-------------------------- Private fucntions -------------------------- */
+    /**
+     * Fills reach row in the matrix vector with data from corresponding entries in
+     * result. Basically, copy the values from a ResultSet into a Jolie ValueVector.
+     * 
+     * @param result - The ResultSet to copy from
+     * @param vector - The ValueVector to fill.
+     * @throws SQLException - Thrown if any operation on result fails.
+     */
+    private static void resultSetToValueVector(ResultSet result, ValueVector vector)
+            throws SQLException {
+        Value rowValue, fieldValue;
+        ResultSetMetaData metadata = result.getMetaData();
+        int cols = metadata.getColumnCount();
+        int i;
+        int rowIndex = 0;
+
+        // As opposed to the Database service, for this simple example, we don't support
+        // ToUpper and ToLower.
+
+        while (result.next()) {
+            rowValue = vector.get(rowIndex);
+            for (i = 1; i <= cols; i++) {
+                fieldValue = rowValue.getFirstChild(metadata.getColumnLabel(i));
+                setValue(fieldValue, result, metadata.getColumnType(i), i);
+            }
+            rowIndex++;
+        }
+    }
+
+    /**
+     * Sets the value of fieldValue to the corresponding field in result. This
+     * functions purely as a sort of 'parsing', it seems.
+     * I've removed support for non-integer values for the sake of
+     * reading-simplicity. Also, don't ask me why they used a switch statement here,
+     * but not in the 'connect' method.
+     * 
+     * So glad I didn't have to write this by hand - I yoinked it directly from the
+     * Database Service of jolie
+     * 
+     * @throws SQLException - Thrown if any operation on result fails.
+     */
+    private static void setValue(Value fieldValue, ResultSet result, int columnType, int index)
+            throws SQLException {
+        switch (columnType) {
+            case java.sql.Types.INTEGER:
+            case java.sql.Types.SMALLINT:
+            case java.sql.Types.TINYINT:
+                fieldValue.setValue(result.getInt(index));
+                break;
+            case java.sql.Types.BIGINT:
+                fieldValue.setValue(result.getLong(index));
+                break;
+            case java.sql.Types.NVARCHAR:
+            case java.sql.Types.NCHAR:
+            case java.sql.Types.LONGNVARCHAR:
+                String s = result.getNString(index);
+                if (s == null) {
+                    s = "";
+                }
+                fieldValue.setValue(s);
+                break;
+            case java.sql.Types.BIT:
+            case java.sql.Types.BOOLEAN:
+                fieldValue.setValue(result.getBoolean(index));
+                break;
+            case java.sql.Types.VARCHAR:
+            default:
+                String str = result.getString(index);
+                if (str == null) {
+                    str = "";
+                }
+                fieldValue.setValue(str);
+                break;
+        }
+    }
+
 }

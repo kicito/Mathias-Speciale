@@ -6,19 +6,28 @@ type TransactionResult: string
 type ConnectRequest: ConnectionInfo
 type ConnectResponse: string
 
-type ExecuteQueryRequest{
+type QueryRequest{
     .handle: TransactionHandle
     .query: string
 }
+type QueryResult: void {
+    .row*: undefined
+}
 
-type QueryResult: any   //TODO: Figure out how to return the result of a query
+type UpdateRequest{
+    .handle: TransactionHandle
+    .update: string
+}
+type UpdateResponse: int
+
 
 interface TransactionServiceInterface {
     RequestResponse: 
         connect( ConnectRequest ) ( ConnectResponse ),
-        startTransaction( void )( TransactionId ),
-        executeQueryInTransaction( ExecuteQueryRequest )( QueryResult ),
-        commitChanges( TransactionHandle )( TransactionResult )
+        start( void )( TransactionHandle ),
+        executeQuery( QueryRequest )( QueryResult ),
+        executeUpdate( UpdateRequest )( UpdateResponse ),
+        commit( TransactionHandle )( TransactionResult )
 }
 
 service TransactionService{
