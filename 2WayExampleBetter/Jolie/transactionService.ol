@@ -24,7 +24,7 @@ type UpdateResponse: int
 interface TransactionServiceInterface {
     RequestResponse: 
         connect( ConnectRequest ) ( ConnectResponse ),
-        start( void )( TransactionHandle ),
+        initiate( void )( TransactionHandle ),
         executeQuery( QueryRequest )( QueryResult ),
         executeUpdate( UpdateRequest )( UpdateResponse ),
         commit( TransactionHandle )( TransactionResult )

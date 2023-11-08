@@ -33,14 +33,18 @@ service TestService{
 
         connect@Database(connectionInfo)()
         update@Database("CREATE TABLE IF NOT EXISTS Numbers(username VARCHAR(50) NOT NULL, number int)")()
-        close@Database( )(  )
     }
     main
     {
         [sayHello( request )( response ){
-            println@Console( "Jolie saying hello!" )(  )
-            sayHello@TransactionService( request )( res )
-            println@Console("Finished Jolie!")()
+            connect@TransactionService( connectionInfo )(  )
+            initiate@TransactionService(  )( tHandle )
+            executeQuery@TransactionService( "SELECT * FROM numbers;" )( qResp )
+            foreach ( row : qResp.row ) {
+                println@Console( "User: " + row.username + " has drunk " + row.number + " beers" )(  )
+            }
+            executeUpdate@TransactionService( "INSERT INTO numbers (username, number) VALUES ('HeyManTransaction', 1);" )( uResp )
+            println@Console("How many rows were updated? Answer: " + uResp)()
             response = "nice"
         }]
     }
