@@ -1,13 +1,13 @@
 from database import ConnectionInfo
 
-type TransactionId: string
+type TransactionHandle: string
 type TransactionResult: string
 
 type ConnectRequest: ConnectionInfo
 type ConnectResponse: string
 
 type ExecuteQueryRequest{
-    .tId: TransactionId
+    .handle: TransactionHandle
     .query: string
 }
 
@@ -18,7 +18,7 @@ interface TransactionServiceInterface {
         connect( ConnectRequest ) ( ConnectResponse ),
         startTransaction( void )( TransactionId ),
         executeQueryInTransaction( ExecuteQueryRequest )( QueryResult ),
-        commitChanges( TransactionId )( TransactionResult )
+        commitChanges( TransactionHandle )( TransactionResult )
 }
 
 service TransactionService{

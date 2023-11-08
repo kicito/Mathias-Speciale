@@ -139,26 +139,35 @@ public class TransactionService extends JavaService {
     }
 
     public Value executeQueryInTransaction(Value input) {
-        String transactionId = input.getFirstChild("tId").strValue();
+        String transactionId = input.getFirstChild("handle").strValue();
         String query = input.getFirstChild("query").strValue();
+
+        Value response = Value.create();
 
         try {
             Connection con = openTransactions.get(transactionId);
             PreparedStatement statement = con.prepareStatement(query);
             ResultSet rs = statement.executeQuery();
+
             // Return changes, which I hope can be found from the RS
+            return response;
         } catch (SQLException e) {
+            return response;
             // return error
         }
     }
 
     public Value commitTransaction(String tId) {
+        Value response = Value.create();
+
         try {
-            Connection con = openConnections.get(tId);
+            Connection con = openTransactions.get(tId);
             con.commit();
             // Return success
+            return response;
         } catch (SQLException e) {
             // return error
+            return response;
         }
     }
 }
