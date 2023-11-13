@@ -39,12 +39,22 @@ service TestService{
         [sayHello( request )( response ){
             connect@TransactionService( connectionInfo )(  )
             initiate@TransactionService(  )( tHandle )
-            executeQuery@TransactionService( "SELECT * FROM numbers;" )( qResp )
-            foreach ( row : qResp.row ) {
+            with (qReqOne){
+                .handle << tHandle;
+                .query <<  "SELECT * FROM numbers;"
+            }
+            executeQuery@TransactionService(qReqOne )( qResp )
+            for ( row in qResp.row ) {
                 println@Console( "User: " + row.username + " has drunk " + row.number + " beers" )(  )
             }
-            executeUpdate@TransactionService( "INSERT INTO numbers (username, number) VALUES ('HeyManTransaction', 1);" )( uResp )
+            with (qReqTwo){
+                .handle << tHandle;
+                .update << "INSERT INTO numbers (username, number) VALUES ('HeyManTransaction', 1);" 
+            }
+            executeUpdate@TransactionService( qReqTwo )( uResp )
             println@Console("How many rows were updated? Answer: " + uResp)()
+            commit@TransactionService( tHandle )( cResp )
+            print@Console( "Response: " + cResp )(  )
             response = "nice"
         }]
     }

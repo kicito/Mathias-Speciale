@@ -143,7 +143,6 @@ public class TransactionService extends JavaService {
 
         try {
             Connection con = m_openTransactions.get(transactionHandle);
-            System.out.println("Is con closed: " + con.isClosed());
             PreparedStatement statement = con.prepareStatement(query);
             ResultSet result = statement.executeQuery();
 
