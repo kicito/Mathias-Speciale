@@ -20,11 +20,6 @@ type ForwarderServiceInfo {
     .brokerOptions: KafkaOptions
 }
 
-type ForwarderResponse{
-    .status: int
-    .reason: string
-}
-
 interface MessageForwarderInterface {
     OneWay: startReadingMessages ( ForwarderServiceInfo )
 }
@@ -45,7 +40,7 @@ service MessageForwarderService{
     main{
         [startReadingMessages( request )] 
         {
-            connect@Database( request.databaseConnectionInfo )( void )  // I very much hate that i have to do this again, and i CANNOT simply keep the connection from above open
+            connect@Database( request.databaseConnectionInfo )( void )
             println@Console( "OutboxMessageForwarder Initialized" )(  )
             
             // Keep polling for messages at a given interval.
@@ -63,8 +58,8 @@ service MessageForwarderService{
 
                         propagateMessage@KafkaInserter( kafkaMessage )( kafkaResponse )
 
-                        println@Console( "Response status: " + kafkaResponse.status )(  )
-                        if (kafkaResponse.status == 200) {
+                        println@Console( "Response success: " + kafkaResponse.success )(  )
+                        if (kafkaResponse.success == true) {
                             deleteQuery = "DELETE FROM outbox WHERE  mid = " + databaseMessage.mid
                             println@Console( "OutboxMessageForwarder: \tExecuting query '" + deleteQuery + "'")(  )
                             update@Database( deleteQuery )( updateResponse )

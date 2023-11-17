@@ -1,8 +1,8 @@
 {
   "serviceAConnectionInfo": {
-    "password": "example",
+    "password": "",
     "database": "file:serviceADb.sqlite",
-    "driver": "postgresql",
+    "driver": "sqlite",
     "host": "",
     "username": ""
   },

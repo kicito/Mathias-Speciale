@@ -31,7 +31,7 @@ public class KafkaConsumerService extends JavaService {
      *              .pollAmount: str - The number of records that can be consumed
      *              from the kafka queue per poll
      */
-    public Value Initialize(Value input) {
+    public Value initialize(Value input) {
         Value response = Value.create();
         Properties props = new Properties();
         Value kafkaOptions = input.getFirstChild("brokerOptions");
@@ -63,7 +63,7 @@ public class KafkaConsumerService extends JavaService {
      *              .timeoutMs: long - How long the consumer should wait for a
      *              response form Kafka
      */
-    public Value Consume(Value input) {
+    public Value consume(Value input) {
         long timeout = input.getFirstChild("timeoutMs").longValue();
         ConsumerRecords<String, String> records = null;
 
@@ -99,7 +99,7 @@ public class KafkaConsumerService extends JavaService {
      *              confirmed to be delivered
      * @return
      */
-    public Value Commit(Value input) {
+    public Value commit(Value input) {
         Value response = Value.create();
         long offset = input.getFirstChild("offset").longValue() + 1; // +1 since we're committing what the offset of the
         // NEXT message

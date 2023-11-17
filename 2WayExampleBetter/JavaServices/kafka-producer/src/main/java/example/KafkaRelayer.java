@@ -58,12 +58,12 @@ public class KafkaRelayer extends JavaService {
                             "Partition: " + recordMetadata.partition() + "\n" +
                             "Offset: " + recordMetadata.offset() + "\n" +
                             "Timestamp: " + recordMetadata.timestamp();
-                    response.getFirstChild("reason").setValue(statusMessage);
-                    response.getFirstChild("status").setValue(200);
+                    response.getFirstChild("message").setValue(statusMessage);
+                    response.getFirstChild("success").setValue(true);
                 } else {
                     statusMessage = e.getMessage();
-                    response.getFirstChild("reason").setValue(statusMessage);
-                    response.getFirstChild("status").setValue(500);
+                    response.getFirstChild("message").setValue(statusMessage);
+                    response.getFirstChild("success").setValue(false);
                 }
             }
         });
