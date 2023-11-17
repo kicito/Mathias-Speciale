@@ -11,7 +11,6 @@ from .TransactionService.transactionService import TransactionService
 
 service ServiceA{
     execution: concurrent
-
     inputPort ServiceALocal {
         location: "local" 
         protocol: http{
@@ -22,13 +21,13 @@ service ServiceA{
 
     outputPort OutboxService {
         Location: "local"
-        Protocol: http{
+        protocol: http{
             format = "json"
         }
         Interfaces: OutboxInterface
     }
-    embed Runtime as Runtime
     embed TransactionService as TransactionService
+    embed Runtime as Runtime
 
     init
     {
@@ -48,14 +47,15 @@ service ServiceA{
                 localLocation << location
                 externalLocation << "socket://localhost:8080"       //This doesn't work (yet)
                 databaseConnectionInfo << config.serviceAConnectionInfo
-                transactionServiceLocation << TransactionService.location
+                transactionServiceLocation << TransactionService.location   // All embedded services must talk to the same instance of 'TransactionServie'
                 kafkaPollOptions << config.pollOptions
                 kafkaInboxOptions << config.kafkaInboxOptions
             }
         } )( inbox.location )
 
         // Load the outbox service as an embedded service
-        loadEmbeddedService@Runtime({
+        println@Console( "1" )(  )
+        loadEmbeddedService@Runtime( {
             filepath = "Outbox/outboxService.ol"
             params << { 
                 pollSettings << config.pollOptions;
@@ -63,8 +63,10 @@ service ServiceA{
                 brokerOptions << config.kafkaOutboxOptions;
                 transactionServiceLocation << TransactionService.location
             }
-        })( OutboxService.location )    // It is very important that this is a lower-case 'location', otherwise it doesn't work
+        } )( OutboxService.location )    // It is very important that this is a lower-case 'location', otherwise it doesn't work
                                         // Guess how long it took me to figure that out :)
+        
+        println@Console("3")()
         
         // Connect the TransactionService to the database 
         connect@TransactionService( config.serviceAConnectionInfo )( void )
@@ -86,6 +88,7 @@ service ServiceA{
             executeUpdate@TransactionService( createTableRequest )( createTableResponse )
             if ( createTableResponse > 0 ) {
                 println@Console("Local state initialized for Service A")()
+                commit@TransactionService( tHandle )( )
             } else {
                 println@Console("Error in initializing local state for Service A")()
             }

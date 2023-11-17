@@ -7,7 +7,7 @@ interface MessageForwarderInterface {
 }
 
 /**
-* This service is responsible for reading messages from the 'Messages' table, forwarding them to Kafaka, 
+* This service is responsible for reading messages from the 'outbox' table, forwarding them to Kafaka, 
 * then deleting the messages from the table when an ack is recieved fom Kafka
 */
 service MessageForwarderService{
@@ -18,7 +18,7 @@ service MessageForwarderService{
     }
     embed KafkaInserter as KafkaInserter
 
-    /** Starts this service reading continually from the 'Messages' table */
+    // Starts this service reading continually from the 'outbox' table
     main{
         [startReadingMessages( request )] 
         {

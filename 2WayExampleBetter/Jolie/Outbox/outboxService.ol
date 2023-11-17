@@ -14,7 +14,7 @@ interface OutboxInterface{
 * It will then embeds a 'RelayService', which reads from the 'Messages' table and forwards messages into Kafka.
 */
 service Outbox(p: OutboxSettings){
-    execution: sequential
+    execution: concurrent
     inputPort OutboxPort {
         Location: "local"
         Interfaces: OutboxInterface
@@ -38,6 +38,7 @@ service Outbox(p: OutboxSettings){
     embed Runtime as Runtime
 
     init {
+        println@Console("2")()
         // Insert location of the transaction service embedded in main service
         TransactionService.location << p.transactionServiceLocation
 

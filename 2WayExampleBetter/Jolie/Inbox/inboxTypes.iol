@@ -23,33 +23,6 @@ type KafkaMessage {
     .topic: string
 }
 
-// type Config {
-//     .serviceAConnectionInfo {
-//         .username: string
-//         .password: string
-//         .database: string
-//         .driver: string
-//         .host: string
-//     }
-
-//     .pollOptions {
-//         .pollDurationMS: int
-//         .pollAmount: int
-//     }
-
-//     .kafkaInboxOptions {
-//         .bootstrapServer: string
-//         .groupId: string
-//         .topic: string
-//     }
-
-//     .kafkaOutboxOptions {
-//         .bootstrapServer: string
-//         .groupId: string
-//         .topic: string
-//     }
-// }
-
 //#################### InboxService types #######################
 type InboxEmbeddingConfig: void {
     .localLocation: any

@@ -34,12 +34,6 @@ type StatusResponse {
     .message: string
 }
 
-type ForwarderServiceInfo {
-    .databaseConnectionInfo: ConnectionInfo     // The connectioninfo used to connect to the database. See docs the Database module.
-    .pollSettings: PollSettings                 // The settings to use
-    .columnSettings: ColumnSettings            // The names of the columns in the 'messages' table
-    .brokerOptions: KafkaOptions
-}
 //-------------------- MFS Types -----------------------//
 type ColumnSettings {
     .keyColumn: string
@@ -47,6 +41,12 @@ type ColumnSettings {
     .idColumn: string
 }
 
+type ForwarderServiceInfo {
+    .databaseConnectionInfo: ConnectionInfo     // The connectioninfo used to connect to the database. See docs the Database module.
+    .pollSettings: PollSettings                 // The settings to use
+    .columnSettings: ColumnSettings            // The names of the columns in the 'outbox' table
+    .brokerOptions: KafkaOptions
+}
 //-------------------- Kafka Inserter Types -----------------//
 type KafkaMessage {
     .topic: string
