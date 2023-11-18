@@ -1,11 +1,9 @@
-include "database.iol"
-include "console.iol"
-include "time.iol"
-include "file.iol"
-include "string_utils.iol" 
-include "serviceAInterface.iol"
-
+from database import Database
+from console import Console
+from file import File
 from runtime import Runtime
+from string_utils import StringUtils
+from .serviceAInterface import ServiceAInterface
 from .Outbox.outboxService import OutboxInterface
 from .TransactionService.transactionService import TransactionService
 
@@ -28,6 +26,8 @@ service ServiceA{
     }
     embed TransactionService as TransactionService
     embed Runtime as Runtime
+    embed Console as Console
+    embed File as File
 
     init
     {
@@ -83,7 +83,7 @@ service ServiceA{
                 "number int)";
                 .handle = tHandle
             }
-            '
+            
             // Create the table 
             executeUpdate@TransactionService( createTableRequest )( createTableResponse )
             if ( createTableResponse > 0 ) {

@@ -1,9 +1,9 @@
-include "Outbox/outboxTypes.iol"
-
-from runtime import Runtime
+from .outboxTypes import OutboxSettings, UpdateOutboxRequest, StatusResponse
 from .messageForwarderService import MessageForwarderInterface
 from ..TransactionService.transactionService import TransactionServiceInterface
-
+from runtime import Runtime
+from console import Console
+from database import Database
 interface OutboxInterface{
     RequestResponse:
         updateOutbox( UpdateOutboxRequest )( StatusResponse )
@@ -36,7 +36,8 @@ service Outbox(p: OutboxSettings){
         Interfaces: MessageForwarderInterface
     }
     embed Runtime as Runtime
-
+    embed Console as Console
+    embed Database as Database
     init {
         println@Console("2")()
         // Insert location of the transaction service embedded in main service
@@ -48,7 +49,7 @@ service Outbox(p: OutboxSettings){
         })( MFS.location )
 
         println@Console("OutboxService: \tInitializing connection to Kafka")();
-        connect@TrnasactionService( p.databaseConnectionInfo )( void )
+        connect@TransactionService( p.databaseConnectionInfo )( void )
         connect@Database( p.databaseConnectionInfo )( void )
         scope ( createMessagesTable )
         {
@@ -85,7 +86,7 @@ service Outbox(p: OutboxSettings){
 
                 executeUpdate@TransactionService( updateRequest )( updateResponse )
                 if ( req.commitTransaction ){
-                    commit@TransactionSErvice( req.tHandle )()
+                    commit@TransactionService( req.tHandle )()
                 }
                 res.success = true 
                 res.message = "Transaction executed sucessfully"

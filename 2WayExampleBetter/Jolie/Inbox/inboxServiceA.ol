@@ -3,9 +3,9 @@ include "time.iol"
 include "database.iol"
 include "file.iol"
 include "Inbox/inboxTypes.iol"
-include "serviceAInterface.iol"
 
 from runtime import Runtime
+from ..serviceAInterface import ServiceAInterface
 from ..TransactionService.transactionService import TransactionServiceInterface
 
 service Inbox (p: InboxEmbeddingConfig){

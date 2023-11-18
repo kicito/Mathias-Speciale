@@ -3,8 +3,7 @@ include "time.iol"
 include "database.iol"
 include "file.iol"
 include "Inbox/inboxTypes.iol"
-include "serviceBInterface.iol"
-
+from ..serviceBInterface import ServiceBInterface
 from runtime import Runtime
 
 service Inbox (p: InboxEmbeddingConfig){

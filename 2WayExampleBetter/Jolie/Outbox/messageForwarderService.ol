@@ -1,7 +1,8 @@
-include "Outbox/outboxTypes.iol"
-
+from .outboxTypes import ForwarderServiceInfo
 from .kafka-inserter import KafkaInserter
-
+from time import Time
+from database import Database
+from console import Console
 interface MessageForwarderInterface {
     OneWay: startReadingMessages ( ForwarderServiceInfo )
 }
@@ -17,6 +18,9 @@ service MessageForwarderService{
         Interfaces: MessageForwarderInterface
     }
     embed KafkaInserter as KafkaInserter
+    embed Time as Time
+    embed Database as Database
+    embed Console as Console
 
     // Starts this service reading continually from the 'outbox' table
     main{

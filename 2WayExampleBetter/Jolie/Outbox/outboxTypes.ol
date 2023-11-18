@@ -1,7 +1,4 @@
-//--------------------- Outbox Service Types --------------------//
-include "database.iol"
-include "time.iol"
-include "console.iol"
+from database import ConnectionInfo
 
 type KafkaOptions: void {   
     .topic: string                              // The topic to write updates to
@@ -24,7 +21,7 @@ type UpdateOutboxRequest{
 
 type OutboxSettings{
     .databaseConnectionInfo: ConnectionInfo             // The connectioninfo used to connect to the database. See docs the Database module.
-    .pollSettings: PollSettings                         // Object of type PollSettings descibing the desired behaviour of the MessageForwarder
+    .pollSettings: PollSettings                        // Object of type PollSettings descibing the desired behaviour of the MessageForwarder
     .brokerOptions: KafkaOptions // RabbitMqOptions
     .transactionServiceLocation: any                    // The location of the transaction service
 }
@@ -43,7 +40,7 @@ type ColumnSettings {
 
 type ForwarderServiceInfo {
     .databaseConnectionInfo: ConnectionInfo     // The connectioninfo used to connect to the database. See docs the Database module.
-    .pollSettings: PollSettings                 // The settings to use
+    .pollSettings: PollSettings                // The settings to use
     .columnSettings: ColumnSettings            // The names of the columns in the 'outbox' table
     .brokerOptions: KafkaOptions
 }

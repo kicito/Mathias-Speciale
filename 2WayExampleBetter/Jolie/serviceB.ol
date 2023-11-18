@@ -1,11 +1,9 @@
-include "database.iol"
-include "console.iol"
-include "time.iol"
-include "file.iol"
-include "string_utils.iol" 
-include "serviceBInterface.iol"
-
 from runtime import Runtime
+from file import File
+from database import Database
+from console import Console
+from string_utils import StringUtils
+from .serviceBInterface import ServiceBInterface
 from .Outbox.outboxService import Outbox
 from .Inbox.inboxServiceB import Inbox
 
@@ -24,11 +22,16 @@ service ServiceB{
     embed Outbox as OutboxService
     // inbox service is loaded dynamically in the 'init' function
     embed Runtime as Runtime
-
+    embed File as File
+    embed Database as Database
+    embed Console as Console
+    embed StringUtils as StringUtils
+    
     init {
         getLocalLocation@Runtime()( location )
         loadEmbeddedService@Runtime( { 
             filepath = "Inbox/inboxServiceB.ol"
+            service = "Inbox"
             params << { 
                 localLocation << location
                 externalLocation << "socket://localhost:8082"       //This doesn't work

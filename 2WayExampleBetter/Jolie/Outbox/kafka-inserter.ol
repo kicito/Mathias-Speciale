@@ -1,5 +1,4 @@
-include "Outbox/outboxTypes.iol"
-
+from .outboxTypes import KafkaMessage, StatusResponse
 interface KafkaInserterInterface {
     RequestResponse: 
         propagateMessage( KafkaMessage )( StatusResponse ),
